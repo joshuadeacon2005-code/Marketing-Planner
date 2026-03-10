@@ -1,0 +1,1566 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Bloom & Grow Marketing Planner — User Guide</title>
+  <style>
+    /* ── Reset & Base ── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --orange:       #F7971C;
+      --orange-dark:  #E8850F;
+      --orange-light: #FEF3E2;
+      --blue:         #2575FC;
+      --dark-900:     #0F1117;
+      --dark-800:     #161B27;
+      --dark-700:     #1E2535;
+      --dark-600:     #252D3D;
+      --border:       rgba(255,255,255,0.08);
+      --text-primary: #F1F3F7;
+      --text-muted:   #8B95A7;
+      --success:      #10B981;
+      --warning:      #F59E0B;
+      --error:        #EF4444;
+      --info:         #3B82F6;
+    }
+    html { scroll-behavior: smooth; }
+    body {
+      font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+      background: var(--dark-900);
+      color: var(--text-primary);
+      line-height: 1.6;
+      font-size: 15px;
+    }
+
+    /* ── Sidebar TOC ── */
+    .toc-sidebar {
+      position: fixed;
+      top: 0; left: 0;
+      width: 260px;
+      height: 100vh;
+      background: var(--dark-800);
+      border-right: 1px solid var(--border);
+      overflow-y: auto;
+      z-index: 100;
+      display: flex;
+      flex-direction: column;
+    }
+    .toc-logo {
+      padding: 24px 20px 16px;
+      border-bottom: 1px solid var(--border);
+    }
+    .toc-logo .brand-name {
+      font-size: 18px;
+      font-weight: 700;
+      color: var(--orange);
+      letter-spacing: -0.3px;
+    }
+    .toc-logo .brand-sub {
+      font-size: 11px;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.15em;
+      margin-top: 2px;
+    }
+    .toc-label {
+      padding: 16px 20px 6px;
+      font-size: 10px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.15em;
+      color: var(--text-muted);
+    }
+    .toc-nav { padding: 0 8px 24px; }
+    .toc-nav a {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 7px 12px;
+      border-radius: 7px;
+      text-decoration: none;
+      color: var(--text-muted);
+      font-size: 13px;
+      font-weight: 500;
+      transition: all 0.15s;
+    }
+    .toc-nav a:hover { background: rgba(247,151,28,0.08); color: var(--orange); }
+    .toc-nav a .dot {
+      width: 6px; height: 6px;
+      border-radius: 50%;
+      background: var(--orange);
+      flex-shrink: 0;
+      opacity: 0.4;
+    }
+    .toc-nav a:hover .dot { opacity: 1; }
+    .toc-nav .sub-link {
+      padding-left: 30px;
+      font-size: 12px;
+      font-weight: 400;
+    }
+
+    /* ── Main Content ── */
+    .main {
+      margin-left: 260px;
+      padding: 48px 56px 80px;
+      max-width: 960px;
+    }
+
+    /* ── Page Header ── */
+    .page-header {
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 40px;
+      margin-bottom: 52px;
+    }
+    .guide-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: rgba(247,151,28,0.12);
+      border: 1px solid rgba(247,151,28,0.3);
+      color: var(--orange);
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+      padding: 5px 12px;
+      border-radius: 20px;
+      margin-bottom: 16px;
+    }
+    .page-title {
+      font-size: 42px;
+      font-weight: 800;
+      letter-spacing: -1px;
+      line-height: 1.1;
+      color: #fff;
+    }
+    .page-title span { color: var(--orange); }
+    .page-subtitle {
+      margin-top: 12px;
+      font-size: 16px;
+      color: var(--text-muted);
+      max-width: 560px;
+      line-height: 1.7;
+    }
+    .meta-pills {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 24px;
+    }
+    .meta-pill {
+      background: var(--dark-700);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      padding: 4px 14px;
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+
+    /* ── Sections ── */
+    .section {
+      margin-bottom: 64px;
+      scroll-margin-top: 32px;
+    }
+    .section-header {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      margin-bottom: 28px;
+    }
+    .section-icon {
+      width: 40px; height: 40px;
+      background: rgba(247,151,28,0.12);
+      border: 1px solid rgba(247,151,28,0.25);
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 18px;
+      flex-shrink: 0;
+    }
+    h2 {
+      font-size: 26px;
+      font-weight: 700;
+      color: #fff;
+      letter-spacing: -0.4px;
+    }
+    h3 {
+      font-size: 17px;
+      font-weight: 600;
+      color: var(--text-primary);
+      margin: 28px 0 12px;
+    }
+    h4 {
+      font-size: 14px;
+      font-weight: 700;
+      color: var(--orange);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      margin: 20px 0 8px;
+    }
+    p { color: var(--text-muted); margin-bottom: 14px; line-height: 1.75; }
+    p strong { color: var(--text-primary); font-weight: 600; }
+    ul, ol { padding-left: 20px; margin-bottom: 16px; }
+    li { color: var(--text-muted); margin-bottom: 6px; line-height: 1.7; }
+    li strong { color: var(--text-primary); }
+
+    /* ── Cards ── */
+    .card {
+      background: var(--dark-700);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 24px;
+      margin-bottom: 16px;
+    }
+    .card-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+      gap: 14px;
+      margin-bottom: 24px;
+    }
+    .card-small {
+      background: var(--dark-700);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 16px 18px;
+    }
+    .card-small .card-title {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text-primary);
+      margin-bottom: 4px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .card-small .card-desc {
+      font-size: 12px;
+      color: var(--text-muted);
+      line-height: 1.55;
+    }
+
+    /* ── Callouts ── */
+    .callout {
+      display: flex;
+      gap: 14px;
+      border-radius: 10px;
+      padding: 16px 18px;
+      margin: 20px 0;
+      border: 1px solid;
+    }
+    .callout-icon { font-size: 18px; flex-shrink: 0; margin-top: 1px; }
+    .callout-body { flex: 1; }
+    .callout-title { font-size: 13px; font-weight: 700; margin-bottom: 4px; }
+    .callout-text { font-size: 13px; color: var(--text-muted); line-height: 1.6; margin: 0; }
+    .callout.tip    { background: rgba(16,185,129,0.06);  border-color: rgba(16,185,129,0.25); }
+    .callout.tip .callout-title { color: var(--success); }
+    .callout.note   { background: rgba(59,130,246,0.06);  border-color: rgba(59,130,246,0.25); }
+    .callout.note .callout-title { color: var(--info); }
+    .callout.warn   { background: rgba(245,158,11,0.06);  border-color: rgba(245,158,11,0.25); }
+    .callout.warn .callout-title { color: var(--warning); }
+    .callout.admin  { background: rgba(247,151,28,0.06);  border-color: rgba(247,151,28,0.25); }
+    .callout.admin .callout-title { color: var(--orange); }
+
+    /* ── Steps ── */
+    .steps { counter-reset: step; margin: 16px 0 24px; }
+    .step {
+      display: flex;
+      gap: 16px;
+      margin-bottom: 18px;
+      position: relative;
+    }
+    .step::before {
+      content: '';
+      position: absolute;
+      left: 17px;
+      top: 34px;
+      bottom: -18px;
+      width: 1px;
+      background: var(--border);
+    }
+    .step:last-child::before { display: none; }
+    .step-num {
+      counter-increment: step;
+      width: 34px; height: 34px;
+      background: rgba(247,151,28,0.12);
+      border: 1px solid rgba(247,151,28,0.35);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--orange);
+      flex-shrink: 0;
+    }
+    .step-num::before { content: counter(step); }
+    .step-body { flex: 1; padding-top: 6px; }
+    .step-title { font-size: 14px; font-weight: 600; color: var(--text-primary); margin-bottom: 4px; }
+    .step-desc { font-size: 13px; color: var(--text-muted); line-height: 1.65; margin: 0; }
+
+    /* ── UI Mockup Boxes ── */
+    .ui-frame {
+      background: var(--dark-800);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      overflow: hidden;
+      margin: 20px 0;
+    }
+    .ui-frame-bar {
+      background: var(--dark-900);
+      border-bottom: 1px solid var(--border);
+      padding: 10px 16px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .ui-dot { width: 10px; height: 10px; border-radius: 50%; }
+    .ui-frame-title {
+      font-size: 11px;
+      color: var(--text-muted);
+      margin-left: 8px;
+      font-weight: 500;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+    }
+    .ui-frame-body { padding: 20px; }
+
+    /* ── Navbar Mockup ── */
+    .navbar-mock {
+      background: rgba(15,17,23,0.9);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 12px 20px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      flex-wrap: wrap;
+      margin: 16px 0;
+    }
+    .nav-item {
+      padding: 5px 12px;
+      border-radius: 6px;
+      font-size: 12px;
+      font-weight: 500;
+      color: var(--text-muted);
+      border: 1px solid transparent;
+    }
+    .nav-item.active {
+      background: rgba(247,151,28,0.15);
+      border-color: rgba(247,151,28,0.3);
+      color: var(--orange);
+    }
+    .nav-logo {
+      font-size: 14px;
+      font-weight: 700;
+      color: #fff;
+      padding: 5px 12px;
+      margin-right: 8px;
+      border-right: 1px solid var(--border);
+      padding-right: 20px;
+    }
+    .nav-right { margin-left: auto; display: flex; align-items: center; gap: 8px; }
+    .nav-avatar {
+      width: 26px; height: 26px;
+      background: var(--orange);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 10px;
+      font-weight: 700;
+      color: #fff;
+    }
+    .nav-bell {
+      width: 26px; height: 26px;
+      background: var(--dark-700);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 12px;
+    }
+
+    /* ── Badges / Pills ── */
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      border-radius: 20px;
+      padding: 2px 10px;
+      font-size: 11px;
+      font-weight: 600;
+    }
+    .badge-draft     { background: rgba(107,114,128,0.15); color: #9CA3AF; }
+    .badge-pending   { background: rgba(245,158,11,0.12);  color: var(--warning); }
+    .badge-approved  { background: rgba(16,185,129,0.12);  color: var(--success); }
+    .badge-published { background: rgba(59,130,246,0.12);  color: var(--info); }
+    .badge-overdue   { background: rgba(239,68,68,0.12);   color: var(--error); }
+    .badge-orange    { background: rgba(247,151,28,0.12);  color: var(--orange); }
+    .badge-role-admin  { background: rgba(239,68,68,0.12);  color: var(--error); }
+    .badge-role-manager { background: rgba(247,151,28,0.12); color: var(--orange); }
+    .badge-role-user    { background: rgba(59,130,246,0.12); color: var(--info); }
+
+    /* ── Table ── */
+    .guide-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 16px 0 24px;
+      font-size: 13px;
+    }
+    .guide-table th {
+      background: var(--dark-700);
+      color: var(--text-muted);
+      font-weight: 600;
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      padding: 10px 14px;
+      text-align: left;
+      border-bottom: 1px solid var(--border);
+    }
+    .guide-table td {
+      padding: 10px 14px;
+      border-bottom: 1px solid rgba(255,255,255,0.04);
+      color: var(--text-muted);
+      vertical-align: top;
+    }
+    .guide-table td strong { color: var(--text-primary); }
+    .guide-table tr:last-child td { border-bottom: none; }
+
+    /* ── Workflow Stage ── */
+    .workflow {
+      display: flex;
+      align-items: center;
+      gap: 0;
+      margin: 16px 0 24px;
+      flex-wrap: wrap;
+    }
+    .wf-stage {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 6px;
+      flex: 1;
+      min-width: 100px;
+    }
+    .wf-circle {
+      width: 48px; height: 48px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 20px;
+      border: 2px solid;
+    }
+    .wf-stage.design .wf-circle  { background: rgba(247,151,28,0.1);  border-color: rgba(247,151,28,0.4);  }
+    .wf-stage.copy .wf-circle    { background: rgba(59,130,246,0.1);  border-color: rgba(59,130,246,0.4);  }
+    .wf-stage.publish .wf-circle { background: rgba(16,185,129,0.1);  border-color: rgba(16,185,129,0.4);  }
+    .wf-label { font-size: 12px; font-weight: 600; color: var(--text-primary); }
+    .wf-sub   { font-size: 11px; color: var(--text-muted); }
+    .wf-arrow {
+      font-size: 18px;
+      color: var(--border);
+      margin: 0 4px;
+      margin-bottom: 20px;
+    }
+
+    /* ── Platform Icons Row ── */
+    .platforms {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin: 16px 0;
+    }
+    .platform-pill {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      background: var(--dark-700);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 8px 14px;
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--text-primary);
+    }
+    .platform-pill .icon { font-size: 16px; }
+
+    /* ── HR ── */
+    hr { border: none; border-top: 1px solid var(--border); margin: 48px 0; }
+
+    /* ── Footer ── */
+    .guide-footer {
+      margin-top: 80px;
+      padding: 32px 0;
+      border-top: 1px solid var(--border);
+      text-align: center;
+    }
+    .guide-footer p { font-size: 12px; color: var(--text-muted); margin: 0; }
+    .guide-footer span { color: var(--orange); font-weight: 600; }
+
+    /* ── Responsive ── */
+    @media (max-width: 900px) {
+      .toc-sidebar { display: none; }
+      .main { margin-left: 0; padding: 32px 24px 60px; }
+    }
+    @media print {
+      .toc-sidebar { display: none; }
+      .main { margin-left: 0; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- ══════════════════════════════════ SIDEBAR ══════════════════════════════════ -->
+<aside class="toc-sidebar">
+  <div class="toc-logo">
+    <div class="brand-name">bloom &amp; grow</div>
+    <div class="brand-sub">Marketing Planner · User Guide</div>
+  </div>
+
+  <div class="toc-label">Contents</div>
+  <nav class="toc-nav">
+    <a href="#overview"><span class="dot"></span>Overview</a>
+    <a href="#getting-started"><span class="dot"></span>Getting Started</a>
+    <a href="#navigation"><span class="dot"></span>Navigation</a>
+    <a href="#dashboard"><span class="dot"></span>Dashboard</a>
+    <a href="#projects"><span class="dot"></span>Projects</a>
+    <a href="#publishing-queue"><span class="dot"></span>Publishing Queue</a>
+    <a href="#published"><span class="dot"></span>Published</a>
+    <a href="#tasks"><span class="dot"></span>Tasks</a>
+    <a href="#assets"><span class="dot"></span>Asset Library</a>
+    <a href="#brands"><span class="dot"></span>Brands</a>
+    <a href="#archive"><span class="dot"></span>Archive</a>
+    <a href="#settings"><span class="dot"></span>Settings (Admin)</a>
+    <a href="#notifications"><span class="dot"></span>Notifications</a>
+    <a href="#roles"><span class="dot"></span>Roles &amp; Permissions</a>
+    <a href="#statuses"><span class="dot"></span>Status Reference</a>
+    <a href="#integrations"><span class="dot"></span>Integrations</a>
+    <a href="#tips"><span class="dot"></span>Tips &amp; Best Practices</a>
+  </nav>
+</aside>
+
+<!-- ══════════════════════════════════ MAIN ══════════════════════════════════ -->
+<main class="main">
+
+  <!-- ── PAGE HEADER ── -->
+  <header class="page-header">
+    <div class="guide-badge">📖 User Guide</div>
+    <h1 class="page-title">Bloom &amp; Grow<br /><span>Marketing Planner</span></h1>
+    <p class="page-subtitle">
+      A complete guide to planning, creating, approving, and publishing marketing content
+      across all your brands and platforms — from a single place.
+    </p>
+    <div class="meta-pills">
+      <span class="meta-pill">Version 3.0</span>
+      <span class="meta-pill">Updated March 2026</span>
+      <span class="meta-pill">Roles: Admin · Manager · User</span>
+    </div>
+  </header>
+
+
+  <!-- ═══════════════════════════════════════════ OVERVIEW ═══════════════════════════════════════════ -->
+  <section class="section" id="overview">
+    <div class="section-header">
+      <div class="section-icon">🌸</div>
+      <h2>What is the Marketing Planner?</h2>
+    </div>
+
+    <p>
+      The <strong>Bloom &amp; Grow Marketing Planner</strong> is a centralised B2B platform built to unify every part
+      of the marketing workflow — from initial project creation through design, copywriting, approval,
+      and publishing — across multiple brands and geographic regions.
+    </p>
+
+    <div class="card-grid">
+      <div class="card-small">
+        <div class="card-title">🗂 Project Management</div>
+        <div class="card-desc">Organise campaigns into projects with deliverables, deadlines, and team assignments.</div>
+      </div>
+      <div class="card-small">
+        <div class="card-title">📅 Content Calendar</div>
+        <div class="card-desc">Visualise all social posts, emails, events, and tasks on a unified calendar.</div>
+      </div>
+      <div class="card-small">
+        <div class="card-title">✅ Approval Workflow</div>
+        <div class="card-desc">Route content through Design → Copywriting → Publishing with role-based approvals.</div>
+      </div>
+      <div class="card-small">
+        <div class="card-title">📊 Analytics &amp; Performance</div>
+        <div class="card-desc">Track engagement metrics and top-performing posts per brand.</div>
+      </div>
+      <div class="card-small">
+        <div class="card-title">🖼 Asset Library</div>
+        <div class="card-desc">Store and manage brand assets — graphics, videos, templates — with Canva sync.</div>
+      </div>
+      <div class="card-small">
+        <div class="card-title">🔔 Smart Notifications</div>
+        <div class="card-desc">Automated in-app and Slack alerts for deadlines, assignments, and approvals.</div>
+      </div>
+    </div>
+
+    <div class="callout note">
+      <div class="callout-icon">ℹ️</div>
+      <div class="callout-body">
+        <div class="callout-title">Multi-Brand &amp; Multi-Region</div>
+        <p class="callout-text">
+          The planner is built to support multiple brands (e.g. different venue brands under the Bloom &amp; Grow group)
+          and multiple regions. Content, assets, and team members are all scoped to specific brands and regions
+          so that each team only sees what is relevant to them.
+        </p>
+      </div>
+    </div>
+  </section>
+
+
+  <!-- ═══════════════════════════════════════════ GETTING STARTED ═══════════════════════════════════════════ -->
+  <section class="section" id="getting-started">
+    <div class="section-header">
+      <div class="section-icon">🚀</div>
+      <h2>Getting Started</h2>
+    </div>
+
+    <h3>Logging In</h3>
+    <p>Open the Marketing Planner URL in your browser. You will be taken directly to the login screen.</p>
+
+    <div class="ui-frame">
+      <div class="ui-frame-bar">
+        <div class="ui-dot" style="background:#EF4444"></div>
+        <div class="ui-dot" style="background:#F59E0B"></div>
+        <div class="ui-dot" style="background:#10B981"></div>
+        <span class="ui-frame-title">Login Screen</span>
+      </div>
+      <div class="ui-frame-body">
+        <div style="max-width:340px; margin:0 auto; text-align:center;">
+          <div style="font-size:28px; font-weight:800; color:#fff; margin-bottom:4px;">bloom &amp; grow</div>
+          <div style="font-size:11px; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.15em; margin-bottom:28px;">Marketing Planner</div>
+          <div style="background:var(--dark-700); border:1px solid var(--border); border-radius:8px; padding:6px 12px; margin-bottom:10px; text-align:left; font-size:12px; color:var(--text-muted);">📧  your@email.com</div>
+          <div style="background:var(--dark-700); border:1px solid var(--border); border-radius:8px; padding:6px 12px; margin-bottom:16px; text-align:left; font-size:12px; color:var(--text-muted);">🔒  ••••••••</div>
+          <div style="background:var(--orange); color:#fff; border-radius:8px; padding:9px; font-size:13px; font-weight:700;">Sign In</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="steps">
+      <div class="step">
+        <div class="step-num"></div>
+        <div class="step-body">
+          <div class="step-title">Enter your email address</div>
+          <p class="step-desc">Use the email address that was set up for your account by your Administrator.</p>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num"></div>
+        <div class="step-body">
+          <div class="step-title">Enter your password</div>
+          <p class="step-desc">Passwords are set by your Admin. If you have forgotten your password, contact your Administrator to have it reset.</p>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num"></div>
+        <div class="step-body">
+          <div class="step-title">Click "Sign In"</div>
+          <p class="step-desc">You will be taken to the Dashboard upon successful login. Your session is saved in the browser — you will remain logged in unless you sign out or clear your browser data.</p>
+        </div>
+      </div>
+    </div>
+
+    <h3>Signing Out</h3>
+    <p>
+      Click your <strong>name/avatar</strong> in the top-right corner of the navigation bar. A dropdown will
+      appear — select <strong>"Sign out"</strong> to end your session securely.
+    </p>
+
+    <div class="callout warn">
+      <div class="callout-icon">⚠️</div>
+      <div class="callout-body">
+        <div class="callout-title">Shared Computers</div>
+        <p class="callout-text">Always sign out when using a shared or public computer to protect your account.</p>
+      </div>
+    </div>
+  </section>
+
+
+  <!-- ═══════════════════════════════════════════ NAVIGATION ═══════════════════════════════════════════ -->
+  <section class="section" id="navigation">
+    <div class="section-header">
+      <div class="section-icon">🧭</div>
+      <h2>Navigation</h2>
+    </div>
+
+    <p>
+      Once logged in, the <strong>top navigation bar</strong> runs across the top of every page. It contains
+      all section links, the Brands dropdown, notification bell, and your user menu.
+    </p>
+
+    <div class="navbar-mock">
+      <div class="nav-logo">bloom &amp; grow</div>
+      <div class="nav-item active">Dashboard</div>
+      <div class="nav-item">Projects</div>
+      <div class="nav-item">Queue</div>
+      <div class="nav-item">Published</div>
+      <div class="nav-item">Tasks</div>
+      <div class="nav-item">Assets</div>
+      <div class="nav-item">Archive</div>
+      <div class="nav-item">Brands ▾</div>
+      <div class="nav-item" style="color:var(--orange);">Settings</div>
+      <div class="nav-right">
+        <div class="nav-bell">🔔</div>
+        <div class="nav-avatar">JD</div>
+      </div>
+    </div>
+
+    <table class="guide-table">
+      <thead>
+        <tr>
+          <th>Nav Item</th>
+          <th>What it does</th>
+          <th>Who can see it</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr><td><strong>Dashboard</strong></td><td>Overview metrics, unified calendar, upcoming deadlines, recent activity</td><td>Everyone</td></tr>
+        <tr><td><strong>Projects</strong></td><td>Manage creative projects and their deliverables through the workflow stages</td><td>Everyone</td></tr>
+        <tr><td><strong>Queue</strong></td><td>Publishing queue — deliverables approved and ready to be published to social platforms</td><td>Everyone</td></tr>
+        <tr><td><strong>Published</strong></td><td>History of all successfully published content</td><td>Everyone</td></tr>
+        <tr><td><strong>Tasks</strong></td><td>Create and manage standalone tasks across brands and regions</td><td>Everyone</td></tr>
+        <tr><td><strong>Assets</strong></td><td>Brand asset library — graphics, videos, documents, templates</td><td>Everyone</td></tr>
+        <tr><td><strong>Archive</strong></td><td>Historical record of sent/completed content (social posts, emails, events)</td><td>Everyone</td></tr>
+        <tr><td><strong>Brands ▾</strong></td><td>Dropdown to view all brands or jump directly to a specific brand's hub page</td><td>Everyone</td></tr>
+        <tr><td><strong>Settings</strong></td><td>User management, brand/region config, integrations</td><td>Admins only</td></tr>
+      </tbody>
+    </table>
+
+    <div class="callout tip">
+      <div class="callout-icon">💡</div>
+      <div class="callout-body">
+        <div class="callout-title">Mobile Navigation</div>
+        <p class="callout-text">
+          On smaller screens, the navigation collapses. Tap the <strong>☰ hamburger menu</strong> icon
+          (top right) to expand all navigation links in a full-screen overlay.
+        </p>
+      </div>
+    </div>
+  </section>
+
+
+  <!-- ═══════════════════════════════════════════ DASHBOARD ═══════════════════════════════════════════ -->
+  <section class="section" id="dashboard">
+    <div class="section-header">
+      <div class="section-icon">📊</div>
+      <h2>Dashboard</h2>
+    </div>
+
+    <p>
+      The Dashboard is your command centre. It gives you a live snapshot of all marketing activity across
+      every brand and region you have access to.
+    </p>
+
+    <h3>Stat Cards</h3>
+    <p>
+      The top row shows four glowing metric cards. Each card displays a count and a mini trend chart —
+      hover over a card to see more detail. Clicking a card navigates to the relevant section.
+    </p>
+
+    <div class="card-grid">
+      <div class="card-small">
+        <div class="card-title">📣 Social Posts</div>
+        <div class="card-desc">Total scheduled &amp; published social media posts.</div>
+      </div>
+      <div class="card-small">
+        <div class="card-title">📧 Email Campaigns</div>
+        <div class="card-desc">Total email campaigns in progress or sent.</div>
+      </div>
+      <div class="card-small">
+        <div class="card-title">📅 Upcoming Events</div>
+        <div class="card-desc">Events scheduled within the upcoming period.</div>
+      </div>
+      <div class="card-small">
+        <div class="card-title">✅ Active Tasks</div>
+        <div class="card-desc">Open tasks that need attention.</div>
+      </div>
+    </div>
+
+    <h3>Unified Calendar</h3>
+    <p>
+      Below the stat cards is a full calendar showing <strong>all content types in one view</strong> —
+      social posts, email campaigns, events, and tasks. Use the filter dropdowns above the calendar to
+      narrow by brand, region, or content type. The calendar supports Month, Week, and Day views.
+    </p>
+
+    <div class="callout tip">
+      <div class="callout-icon">💡</div>
+      <div class="callout-body">
+        <div class="callout-title">Colour Coding</div>
+        <p class="callout-text">
+          Calendar events are colour-coded by brand colour, making it easy to see at a glance which brand
+          each piece of content belongs to.
+        </p>
+      </div>
+    </div>
+
+    <h3>Projects Overview</h3>
+    <p>
+      A summary of active projects is shown below the calendar, including progress bars and workflow stage.
+      Click any project to open its detail panel.
+    </p>
+
+    <h3>Upcoming Deadlines</h3>
+    <p>
+      A list of items due within the next 7 days is displayed in the right panel, sorted by urgency.
+      Items are colour-coded — overdue items appear in red, items due today in amber.
+    </p>
+
+    <h3>Recent Activity</h3>
+    <p>
+      A live feed showing the most recent actions taken by your team — new posts created, tasks completed,
+      assets uploaded, approvals submitted, etc.
+    </p>
+  </section>
+
+
+  <!-- ═══════════════════════════════════════════ PROJECTS ═══════════════════════════════════════════ -->
+  <section class="section" id="projects">
+    <div class="section-header">
+      <div class="section-icon">🗂</div>
+      <h2>Projects</h2>
+    </div>
+
+    <p>
+      Projects are the core organisational unit of the planner. A <strong>Project</strong> represents a
+      marketing campaign or initiative and contains one or more <strong>Deliverables</strong> (the individual
+      pieces of content to be created and published).
+    </p>
+
+    <h3>The Content Workflow</h3>
+    <p>Each deliverable moves through three stages:</p>
+
+    <div class="workflow">
+      <div class="wf-stage design">
+        <div class="wf-circle">🎨</div>
+        <div class="wf-label">Design</div>
+        <div class="wf-sub">Designer creates asset</div>
+      </div>
+      <div class="wf-arrow">→</div>
+      <div class="wf-stage copy">
+        <div class="wf-circle">✍️</div>
+        <div class="wf-label">Copywriting</div>
+        <div class="wf-sub">Copy is written &amp; approved</div>
+      </div>
+      <div class="wf-arrow">→</div>
+      <div class="wf-stage publish">
+        <div class="wf-circle">📤</div>
+        <div class="wf-label">Publishing</div>
+        <div class="wf-sub">Content goes live</div>
+      </div>
+    </div>
+
+    <h3>Creating a Project</h3>
+    <div class="steps">
+      <div class="step">
+        <div class="step-num"></div>
+        <div class="step-body">
+          <div class="step-title">Click "+ New Project"</div>
+          <p class="step-desc">The orange button in the top-right of the Projects page opens the project creation dialog.</p>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num"></div>
+        <div class="step-body">
+          <div class="step-title">Fill in project details</div>
+          <p class="step-desc">
+            Enter a <strong>Project Name</strong>, optional description, select the <strong>Brand</strong> and
+            <strong>Region</strong>, and optionally link to a Campaign. You can also set a date range and
+            assign default team members (Designer, Copywriter, Publisher).
+          </p>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num"></div>
+        <div class="step-body">
+          <div class="step-title">Add Deliverables</div>
+          <p class="step-desc">
+            Select the deliverable types needed — e.g. Instagram Posts, Facebook Posts, EDM Graphics,
+            Website Banners, Event Materials. Dimensions auto-fill for each type.
+          </p>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num"></div>
+        <div class="step-body">
+          <div class="step-title">Save the project</div>
+          <p class="step-desc">The project is created and appears in your project list. Assigned team members receive a Slack notification with design specs and a direct "Create in Canva" link.</p>
+        </div>
+      </div>
+    </div>
+
+    <h3>Deliverable Types &amp; Dimensions</h3>
+    <p>The planner knows the recommended dimensions for every deliverable type and auto-fills them:</p>
+
+    <table class="guide-table">
+      <thead>
+        <tr><th>Deliverable Type</th><th>Platform</th><th>Recommended Size</th></tr>
+      </thead>
+      <tbody>
+        <tr><td><strong>Instagram Post</strong></td><td>Instagram</td><td>1080 × 1080 px</td></tr>
+        <tr><td><strong>Instagram Story</strong></td><td>Instagram</td><td>1080 × 1920 px</td></tr>
+        <tr><td><strong>Instagram Reel</strong></td><td>Instagram</td><td>1080 × 1920 px</td></tr>
+        <tr><td><strong>Facebook Post</strong></td><td>Facebook</td><td>1200 × 630 px</td></tr>
+        <tr><td><strong>TikTok Post</strong></td><td>TikTok</td><td>1080 × 1920 px</td></tr>
+        <tr><td><strong>LinkedIn Post</strong></td><td>LinkedIn</td><td>1200 × 627 px</td></tr>
+        <tr><td><strong>Twitter/X Post</strong></td><td>Twitter/X</td><td>1600 × 900 px</td></tr>
+        <tr><td><strong>RedNote Post</strong></td><td>RedNote</td><td>1080 × 1440 px</td></tr>
+        <tr><td><strong>EDM Graphic</strong></td><td>Email</td><td>600 × 400 px</td></tr>
+        <tr><td><strong>Website Banner</strong></td><td>Website</td><td>1920 × 600 px</td></tr>
+        <tr><td><strong>Event Material</strong></td><td>Various</td><td>Custom</td></tr>
+      </tbody>
+    </table>
+
+    <h3>Viewing &amp; Managing a Project</h3>
+    <p>Click any project card to open the <strong>Project Detail Panel</strong>. Here you can:</p>
+    <ul>
+      <li>See all deliverables and their current workflow stage</li>
+      <li>Click a deliverable to expand it and update its status</li>
+      <li>Add reference images for the designer</li>
+      <li>Mark stages as complete to advance the workflow</li>
+      <li>Edit project details or delete the project</li>
+    </ul>
+
+    <div class="callout tip">
+      <div class="callout-icon">💡</div>
+      <div class="callout-body">
+        <div class="callout-title">Canva Integration</div>
+        <p class="callout-text">
+          When a Designer is assigned to a deliverable, they receive a Slack message with a
+          <strong>"Create in Canva"</strong> button. This opens a new Canva project with the correct
+          dimensions pre-set, saving time and reducing size errors.
+        </p>
+      </div>
+    </div>
+
+    <h3>Project Views</h3>
+    <p>Switch between three views using the icons in the top-right of the Projects page:</p>
+    <ul>
+      <li><strong>List view</strong> — compact table with all projects</li>
+      <li><strong>Card/Kanban view</strong> — grouped by workflow stage</li>
+      <li><strong>Calendar view</strong> — projects plotted by date range</li>
+    </ul>
+  </section>
+
+
+  <!-- ═══════════════════════════════════════════ PUBLISHING QUEUE ═══════════════════════════════════════════ -->
+  <section class="section" id="publishing-queue">
+    <div class="section-header">
+      <div class="section-icon">📤</div>
+      <h2>Publishing Queue</h2>
+    </div>
+
+    <p>
+      The <strong>Publishing Queue</strong> shows all deliverables that have completed the Design and
+      Copywriting stages and are now awaiting publication to their target social platform.
+    </p>
+
+    <p>
+      Use the <strong>Brand</strong>, <strong>Region</strong>, and <strong>Type</strong> filter dropdowns
+      at the top to narrow the list to what you need to act on.
+    </p>
+
+    <h3>Publishing a Deliverable</h3>
+    <div class="steps">
+      <div class="step">
+        <div class="step-num"></div>
+        <div class="step-body">
+          <div class="step-title">Find the deliverable in the Queue</div>
+          <p class="step-desc">Use filters to narrow by brand, region, or content type. Each card shows the deliverable name, target platform, assigned publisher, and due date.</p>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num"></div>
+        <div class="step-body">
+          <div class="step-title">Click "Publish" or the arrow icon</div>
+          <p class="step-desc">This opens the Publish screen where you can review the final content, caption, and choose the platform account to publish to.</p>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num"></div>
+        <div class="step-body">
+          <div class="step-title">Select the connected account</div>
+          <p class="step-desc">Choose the Meta Page, TikTok account, LinkedIn page, or Twitter account to post to. Only connected accounts (configured in Settings) are shown.</p>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num"></div>
+        <div class="step-body">
+          <div class="step-title">Confirm &amp; Publish</div>
+          <p class="step-desc">Click "Publish Now". The content is sent to the platform via API. On success, the deliverable moves to the <strong>Published</strong> section.</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="callout note">
+      <div class="callout-icon">ℹ️</div>
+      <div class="callout-body">
+        <div class="callout-title">Platform Status</div>
+        <p class="callout-text">
+          The queue page shows a platform status indicator for each integration (Meta, TikTok, LinkedIn, Twitter).
+          A green tick means the integration is connected and ready. A grey icon means the platform is not yet configured —
+          contact your Admin to set it up in Settings.
+        </p>
+      </div>
+    </div>
+  </section>
+
+
+  <!-- ═══════════════════════════════════════════ PUBLISHED ═══════════════════════════════════════════ -->
+  <section class="section" id="published">
+    <div class="section-header">
+      <div class="section-icon">✅</div>
+      <h2>Published</h2>
+    </div>
+
+    <p>
+      The <strong>Published</strong> page is the permanent record of all content that has been
+      successfully published through the platform. It shows the post, platform, publish date,
+      the team member who published it, and any available performance metrics.
+    </p>
+
+    <p>
+      Use this page to review what has gone out, cross-reference dates, and confirm that scheduled
+      content was published as planned.
+    </p>
+  </section>
+
+
+  <!-- ═══════════════════════════════════════════ TASKS ═══════════════════════════════════════════ -->
+  <section class="section" id="tasks">
+    <div class="section-header">
+      <div class="section-icon">✅</div>
+      <h2>Tasks</h2>
+    </div>
+
+    <p>
+      The <strong>Tasks</strong> section is for standalone work items that don't fit within a Project —
+      things like briefing meetings, research tasks, admin to-dos, or any action that needs tracking.
+    </p>
+
+    <h3>Task Views</h3>
+    <p>Switch between two layouts:</p>
+    <ul>
+      <li><strong>Kanban Board</strong> — columns for To Do, In Progress, and Done. Drag and drop cards between columns.</li>
+      <li><strong>List View</strong> — a table layout with sorting and filtering.</li>
+    </ul>
+
+    <h3>Creating a Task</h3>
+    <div class="steps">
+      <div class="step">
+        <div class="step-num"></div>
+        <div class="step-body">
+          <div class="step-title">Click "+ New Task"</div>
+          <p class="step-desc">The orange button in the top-right opens the task creation dialog.</p>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num"></div>
+        <div class="step-body">
+          <div class="step-title">Fill in the details</div>
+          <p class="step-desc">
+            Enter a <strong>Title</strong>, optional description, select the <strong>Brand</strong> and
+            <strong>Region</strong>, set a <strong>Due Date</strong>, assign a <strong>Priority</strong>
+            (Low, Medium, High, Urgent), and assign it to a team member.
+          </p>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num"></div>
+        <div class="step-body">
+          <div class="step-title">Save the task</div>
+          <p class="step-desc">The task appears on the board and the assigned person receives a notification.</p>
+        </div>
+      </div>
+    </div>
+
+    <h3>Priority Levels</h3>
+    <table class="guide-table">
+      <thead><tr><th>Priority</th><th>Badge</th><th>When to use</th></tr></thead>
+      <tbody>
+        <tr><td><strong>Low</strong></td><td><span class="badge badge-draft">● Low</span></td><td>Nice-to-have, no deadline pressure</td></tr>
+        <tr><td><strong>Medium</strong></td><td><span class="badge badge-published">● Medium</span></td><td>Standard tasks with a normal timeline</td></tr>
+        <tr><td><strong>High</strong></td><td><span class="badge badge-pending">● High</span></td><td>Important, needs attention soon</td></tr>
+        <tr><td><strong>Urgent</strong></td><td><span class="badge badge-overdue">● Urgent</span></td><td>Blocking something else, needs immediate action</td></tr>
+      </tbody>
+    </table>
+
+    <div class="callout tip">
+      <div class="callout-icon">💡</div>
+      <div class="callout-body">
+        <div class="callout-title">Duplicate a Task</div>
+        <p class="callout-text">
+          Use the <strong>⋮ menu</strong> on any task card and select <strong>"Duplicate"</strong> to quickly
+          create a copy of a recurring task with all its details pre-filled.
+        </p>
+      </div>
+    </div>
+  </section>
+
+
+  <!-- ═══════════════════════════════════════════ ASSETS ═══════════════════════════════════════════ -->
+  <section class="section" id="assets">
+    <div class="section-header">
+      <div class="section-icon">🖼</div>
+      <h2>Asset Library</h2>
+    </div>
+
+    <p>
+      The <strong>Asset Library</strong> is a centralised repository for all brand creative files — logos,
+      photography, graphic templates, videos, documents, and email graphics. Assets are organised by brand
+      and filterable by type and tags.
+    </p>
+
+    <h3>Asset Types</h3>
+    <div class="card-grid">
+      <div class="card-small"><div class="card-title">🖼 Graphics / Images</div><div class="card-desc">PNG, JPG, GIF, WEBP files</div></div>
+      <div class="card-small"><div class="card-title">🎥 Videos</div><div class="card-desc">MP4, MOV, and other video formats</div></div>
+      <div class="card-small"><div class="card-title">📄 Documents</div><div class="card-desc">PDF, DOCX, PPTX briefs and guides</div></div>
+      <div class="card-small"><div class="card-title">📐 Templates</div><div class="card-desc">Canva and design templates</div></div>
+      <div class="card-small"><div class="card-title">📧 EDM Graphics</div><div class="card-desc">Email marketing visuals</div></div>
+    </div>
+
+    <h3>Uploading an Asset</h3>
+    <div class="steps">
+      <div class="step">
+        <div class="step-num"></div>
+        <div class="step-body">
+          <div class="step-title">Click "+ Add Asset"</div>
+          <p class="step-desc">Opens the asset upload dialog.</p>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num"></div>
+        <div class="step-body">
+          <div class="step-title">Fill in details</div>
+          <p class="step-desc">Enter a name and description, select the <strong>Brand</strong>, choose the <strong>Asset Type</strong>, and add tags to make it searchable. You can also add an external URL (e.g. a Canva link, DreamPIM link, or Asset Portal link).</p>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num"></div>
+        <div class="step-body">
+          <div class="step-title">Upload the file or paste a link</div>
+          <p class="step-desc">Either upload a file directly or provide an external link. Canva designs can be synced automatically via the Canva integration.</p>
+        </div>
+      </div>
+    </div>
+
+    <h3>Searching &amp; Filtering</h3>
+    <p>Use the search bar and filter dropdowns to find assets quickly:</p>
+    <ul>
+      <li><strong>Search bar</strong> — searches asset names and descriptions</li>
+      <li><strong>Type filter</strong> — show only Graphics, Videos, Documents, etc.</li>
+      <li><strong>Brand filter</strong> — show only assets for a specific brand</li>
+      <li><strong>Tag filter</strong> — find assets by tag</li>
+    </ul>
+
+    <h3>Views</h3>
+    <p>Switch between <strong>Grid view</strong> (thumbnail tiles) and <strong>List view</strong> (table) using the icons in the top-right.</p>
+
+    <h3>Canva Sync</h3>
+    <p>
+      If Canva is connected (configured in Settings by your Admin), you can sync designs directly from
+      your Canva account using the <strong>"Sync from Canva"</strong> button. This pulls the latest versions
+      of your Canva designs into the asset library automatically.
+    </p>
+  </section>
+
+
+  <!-- ═══════════════════════════════════════════ BRANDS ═══════════════════════════════════════════ -->
+  <section class="section" id="brands">
+    <div class="section-header">
+      <div class="section-icon">🏢</div>
+      <h2>Brands</h2>
+    </div>
+
+    <p>
+      The <strong>Brands</strong> section provides a dedicated hub page for each brand, giving a complete
+      picture of that brand's marketing activity in one place.
+    </p>
+
+    <h3>Accessing a Brand Page</h3>
+    <p>
+      Click <strong>Brands ▾</strong> in the top navigation bar. A dropdown appears listing all active brands.
+      Click a brand name to go to its hub, or click <strong>"View All Brands"</strong> to see the full brands overview page.
+    </p>
+
+    <h3>Brand Hub — What You'll Find</h3>
+    <p>Each brand's hub page has several tabs:</p>
+
+    <table class="guide-table">
+      <thead><tr><th>Tab</th><th>Contents</th></tr></thead>
+      <tbody>
+        <tr><td><strong>Overview</strong></td><td>Key stats (total posts, scheduled posts, assets, tasks, this month's activity), upcoming posts, and upcoming email campaigns</td></tr>
+        <tr><td><strong>Promotions</strong></td><td>Active, scheduled, and ended promotions for this brand with discount type and dates</td></tr>
+        <tr><td><strong>Calendar</strong></td><td>All content for this brand on a filtered calendar view</td></tr>
+        <tr><td><strong>Assets</strong></td><td>Brand-specific assets from the asset library, searchable and filterable</td></tr>
+        <tr><td><strong>Activity</strong></td><td>Recent content activity — posts created, tasks completed, campaigns launched</td></tr>
+      </tbody>
+    </table>
+
+    <h3>Promotions</h3>
+    <p>
+      You can add promotions (discounts, BOGOs, special offers) to a brand directly from the brand hub page.
+      Each promotion has a type, optional value, start date, end date, and status.
+    </p>
+
+    <div class="callout admin">
+      <div class="callout-icon">🔑</div>
+      <div class="callout-body">
+        <div class="callout-title">Creating / Editing Brands</div>
+        <p class="callout-text">
+          Adding new brands, editing brand details (name, colour, logo), and managing brand–region assignments
+          is done in <strong>Settings → Brands</strong> by an Administrator.
+        </p>
+      </div>
+    </div>
+  </section>
+
+
+  <!-- ═══════════════════════════════════════════ ARCHIVE ═══════════════════════════════════════════ -->
+  <section class="section" id="archive">
+    <div class="section-header">
+      <div class="section-icon">🗄</div>
+      <h2>Archive</h2>
+    </div>
+
+    <p>
+      The <strong>Archive</strong> (labelled "Archive" in the nav) stores completed and sent content —
+      social posts that have been published, email campaigns that have been sent, and past events.
+    </p>
+
+    <p>
+      Use the Archive to reference past campaigns, review historic content, or find a previous post to
+      duplicate for a new campaign. Filter by brand, region, content type, or date range to find
+      specific items quickly.
+    </p>
+
+    <div class="callout note">
+      <div class="callout-icon">ℹ️</div>
+      <div class="callout-body">
+        <div class="callout-title">Read-Only</div>
+        <p class="callout-text">Content in the Archive cannot be edited. To reuse a piece of content, use the <strong>Duplicate</strong> function to create a new editable copy.</p>
+      </div>
+    </div>
+  </section>
+
+
+  <!-- ═══════════════════════════════════════════ SETTINGS ═══════════════════════════════════════════ -->
+  <section class="section" id="settings">
+    <div class="section-header">
+      <div class="section-icon">⚙️</div>
+      <h2>Settings <span style="font-size:14px; color:var(--error); font-weight:600; margin-left:8px;vertical-align:middle;">Admin Only</span></h2>
+    </div>
+
+    <p>
+      The Settings section is accessible only to users with the <strong>Admin</strong> role.
+      It controls users, brands, regions, integrations, and platform connections for the entire platform.
+    </p>
+
+    <div class="callout admin">
+      <div class="callout-icon">🔑</div>
+      <div class="callout-body">
+        <div class="callout-title">Admin Access Required</div>
+        <p class="callout-text">
+          The Settings link only appears in the navigation for Admin users. If you need something changed
+          in Settings, contact your platform Administrator.
+        </p>
+      </div>
+    </div>
+
+    <h3>Users Tab</h3>
+    <p>Manage all user accounts on the platform.</p>
+    <ul>
+      <li><strong>Create a new user</strong> — click "+ New User" and fill in name, email, password, role, and region assignment</li>
+      <li><strong>Edit a user</strong> — click the ⋮ menu next to a user and select "Edit"</li>
+      <li><strong>Delete a user</strong> — removes their access permanently</li>
+      <li><strong>Roles</strong> — Admin, Manager, or User (see <a href="#roles" style="color:var(--orange);">Roles &amp; Permissions</a>)</li>
+    </ul>
+
+    <h3>Brands Tab</h3>
+    <p>Manage all brands registered on the platform.</p>
+    <ul>
+      <li>Add new brands with name, colour, and logo</li>
+      <li>Activate or deactivate brands</li>
+      <li>Assign brands to regions</li>
+      <li>Add external links (DreamPIM, Asset Portal) per brand</li>
+    </ul>
+
+    <h3>Regions Tab</h3>
+    <p>Manage geographic regions. Users, brands, and content can all be scoped to a region.</p>
+
+    <h3>Hashtags Tab</h3>
+    <p>Manage the shared hashtag library. Hashtags added here can be quickly applied to social posts.</p>
+
+    <h3>Integrations Tab</h3>
+    <p>Configure third-party connections:</p>
+
+    <table class="guide-table">
+      <thead><tr><th>Integration</th><th>Purpose</th><th>Setup</th></tr></thead>
+      <tbody>
+        <tr><td><strong>Meta (Facebook/Instagram)</strong></td><td>Connect Facebook Pages and Instagram accounts for direct publishing and analytics</td><td>Click "Connect Meta" and authenticate via the Meta OAuth flow. Then map pages to brands/regions.</td></tr>
+        <tr><td><strong>TikTok</strong></td><td>Connect TikTok accounts for video publishing</td><td>Enter TikTok API credentials and authenticate via OAuth</td></tr>
+        <tr><td><strong>LinkedIn</strong></td><td>Connect LinkedIn Pages for post publishing</td><td>Enter LinkedIn OAuth credentials</td></tr>
+        <tr><td><strong>Twitter / X</strong></td><td>Connect Twitter/X accounts for tweet publishing</td><td>Enter Twitter API credentials</td></tr>
+        <tr><td><strong>Canva</strong></td><td>Sync designs from Canva into the Asset Library</td><td>Enter Canva Client ID and Secret, then authenticate</td></tr>
+        <tr><td><strong>Slack</strong></td><td>Send automated notifications to team members via Slack DM</td><td>Configured server-side — contact your developer/Admin</td></tr>
+      </tbody>
+    </table>
+
+    <div class="callout tip">
+      <div class="callout-icon">💡</div>
+      <div class="callout-body">
+        <div class="callout-title">Connecting Meta Pages</div>
+        <p class="callout-text">
+          After connecting your Meta account, you must <strong>map each Facebook/Instagram Page to a brand and region</strong>
+          in Settings → Integrations. This tells the planner which account to post to when publishing content for a
+          specific brand and region.
+        </p>
+      </div>
+    </div>
+  </section>
+
+
+  <!-- ═══════════════════════════════════════════ NOTIFICATIONS ═══════════════════════════════════════════ -->
+  <section class="section" id="notifications">
+    <div class="section-header">
+      <div class="section-icon">🔔</div>
+      <h2>Notifications</h2>
+    </div>
+
+    <p>
+      The Marketing Planner sends automated notifications to keep your team informed without needing to
+      constantly check the platform.
+    </p>
+
+    <h3>In-App Notifications</h3>
+    <p>
+      Click the <strong>🔔 bell icon</strong> in the top-right of the navigation bar to view all your
+      in-app notifications. A badge count shows unread notifications. Click any notification to navigate
+      directly to the relevant item.
+    </p>
+
+    <h3>Slack Notifications</h3>
+    <p>If Slack is configured, you will also receive direct messages for key events:</p>
+
+    <table class="guide-table">
+      <thead><tr><th>Event</th><th>Who Gets Notified</th></tr></thead>
+      <tbody>
+        <tr><td>You are assigned to a deliverable as Designer</td><td>The assigned Designer — includes design specs + "Create in Canva" button</td></tr>
+        <tr><td>You are assigned to a deliverable as Copywriter</td><td>The assigned Copywriter</td></tr>
+        <tr><td>You are assigned to a deliverable as Publisher</td><td>The assigned Publisher</td></tr>
+        <tr><td>Content submitted for approval</td><td>Approvers</td></tr>
+        <tr><td>Content approved</td><td>Submitter</td></tr>
+        <tr><td>Deadline in 24 hours</td><td>Assigned team member</td></tr>
+        <tr><td>Deadline in 2 hours</td><td>Assigned team member</td></tr>
+        <tr><td>Task assigned to you</td><td>The assigned user</td></tr>
+      </tbody>
+    </table>
+
+    <div class="callout note">
+      <div class="callout-icon">ℹ️</div>
+      <div class="callout-body">
+        <div class="callout-title">Duplicate Prevention</div>
+        <p class="callout-text">
+          The system automatically prevents sending the same deadline reminder twice, so you won't receive
+          duplicate notifications even if the scheduler runs multiple times.
+        </p>
+      </div>
+    </div>
+  </section>
+
+
+  <!-- ═══════════════════════════════════════════ ROLES ═══════════════════════════════════════════ -->
+  <section class="section" id="roles">
+    <div class="section-header">
+      <div class="section-icon">👥</div>
+      <h2>Roles &amp; Permissions</h2>
+    </div>
+
+    <p>Every user is assigned one of three roles. Your role determines what you can see and do.</p>
+
+    <div class="card-grid">
+      <div class="card">
+        <div style="display:flex; align-items:center; gap:10px; margin-bottom:12px;">
+          <span class="badge badge-role-admin" style="padding:4px 12px; font-size:12px;">ADMIN</span>
+        </div>
+        <p style="margin:0; font-size:13px;">Full access to everything including Settings, user management, brand/region configuration, and all integrations. Can create, edit, and delete any content across all brands and regions.</p>
+      </div>
+      <div class="card">
+        <div style="display:flex; align-items:center; gap:10px; margin-bottom:12px;">
+          <span class="badge badge-role-manager" style="padding:4px 12px; font-size:12px;">MANAGER</span>
+        </div>
+        <p style="margin:0; font-size:13px;">Can view and manage content across all brands and regions. Can create/edit projects, posts, tasks, and assets. Cannot access Settings or manage users.</p>
+      </div>
+      <div class="card">
+        <div style="display:flex; align-items:center; gap:10px; margin-bottom:12px;">
+          <span class="badge badge-role-user" style="padding:4px 12px; font-size:12px;">USER</span>
+        </div>
+        <p style="margin:0; font-size:13px;">Can view content within their assigned region/brand and update items assigned to them. Typically designers, copywriters, and coordinators who work on specific deliverables.</p>
+      </div>
+    </div>
+
+    <h3>Approval Self-Prevention</h3>
+    <p>
+      The platform enforces a rule that <strong>you cannot approve your own content</strong>. If you created
+      or submitted a piece of content, a different team member must approve it. This ensures quality control
+      and a genuine review step.
+    </p>
+  </section>
+
+
+  <!-- ═══════════════════════════════════════════ STATUSES ═══════════════════════════════════════════ -->
+  <section class="section" id="statuses">
+    <div class="section-header">
+      <div class="section-icon">🏷</div>
+      <h2>Status Reference</h2>
+    </div>
+
+    <p>Content items and deliverables move through statuses as they progress through the workflow. Here is a reference for all status badges you will encounter:</p>
+
+    <table class="guide-table">
+      <thead><tr><th>Status Badge</th><th>Meaning</th></tr></thead>
+      <tbody>
+        <tr><td><span class="badge badge-draft">DRAFT</span></td><td>Created but not yet submitted for review</td></tr>
+        <tr><td><span class="badge badge-pending">PENDING</span></td><td>Submitted and awaiting approval or action</td></tr>
+        <tr><td><span class="badge badge-approved">APPROVED</span></td><td>Reviewed and approved — ready for next stage</td></tr>
+        <tr><td><span class="badge badge-published">PUBLISHED</span></td><td>Successfully published to the target platform</td></tr>
+        <tr><td><span class="badge badge-overdue">OVERDUE</span></td><td>Past its deadline and not yet completed</td></tr>
+        <tr><td><span class="badge badge-orange">SCHEDULED</span></td><td>Scheduled for a future date/time</td></tr>
+        <tr><td><span class="badge" style="background:rgba(16,185,129,0.12);color:var(--success);">COMPLETED</span></td><td>Task or item is fully done</td></tr>
+        <tr><td><span class="badge badge-draft">CANCELLED</span></td><td>Item has been cancelled</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+
+  <!-- ═══════════════════════════════════════════ INTEGRATIONS ═══════════════════════════════════════════ -->
+  <section class="section" id="integrations">
+    <div class="section-header">
+      <div class="section-icon">🔗</div>
+      <h2>Integrations</h2>
+    </div>
+
+    <p>The Marketing Planner connects with the following third-party platforms:</p>
+
+    <div class="platforms">
+      <div class="platform-pill"><span class="icon">📘</span> Meta (Facebook)</div>
+      <div class="platform-pill"><span class="icon">📸</span> Instagram</div>
+      <div class="platform-pill"><span class="icon">🎵</span> TikTok</div>
+      <div class="platform-pill"><span class="icon">💼</span> LinkedIn</div>
+      <div class="platform-pill"><span class="icon">🐦</span> Twitter / X</div>
+      <div class="platform-pill"><span class="icon">📖</span> RedNote</div>
+      <div class="platform-pill"><span class="icon">🎨</span> Canva</div>
+      <div class="platform-pill"><span class="icon">💬</span> Slack</div>
+    </div>
+
+    <h3>Meta (Facebook &amp; Instagram)</h3>
+    <p>
+      The Meta integration allows direct publishing of posts and reels to Facebook Pages and Instagram
+      Business accounts, as well as retrieving analytics (reach, impressions, engagement). Setup is
+      done in <strong>Settings → Integrations</strong> by an Admin.
+    </p>
+
+    <h3>TikTok, LinkedIn, Twitter/X</h3>
+    <p>
+      These integrations support publishing content directly from the planner. OAuth credentials are
+      entered in Settings. Once connected, accounts appear in the Publishing Queue when publishing content
+      for the relevant platform.
+    </p>
+
+    <h3>Canva</h3>
+    <p>
+      Two Canva features are available:
+    </p>
+    <ul>
+      <li><strong>Create in Canva link</strong> — Designers receive a Slack notification with a "Create in Canva" button that opens a new design with correct dimensions pre-set.</li>
+      <li><strong>Canva Sync</strong> — Connect your Canva account via OAuth in Settings to sync finished designs directly into the Asset Library.</li>
+    </ul>
+
+    <h3>Slack</h3>
+    <p>
+      Slack DM notifications are sent automatically for workflow events. The Slack integration is configured
+      server-side. Contact your Administrator or developer if Slack notifications are not being received.
+    </p>
+
+    <div class="callout warn">
+      <div class="callout-icon">⚠️</div>
+      <div class="callout-body">
+        <div class="callout-title">Integration Tokens</div>
+        <p class="callout-text">
+          API tokens and OAuth credentials for all integrations are stored securely on the server.
+          Never share your platform credentials. If a token expires, the Admin will need to re-authenticate
+          the integration in Settings.
+        </p>
+      </div>
+    </div>
+  </section>
+
+
+  <!-- ═══════════════════════════════════════════ TIPS ═══════════════════════════════════════════ -->
+  <section class="section" id="tips">
+    <div class="section-header">
+      <div class="section-icon">💡</div>
+      <h2>Tips &amp; Best Practices</h2>
+    </div>
+
+    <h3>Staying Organised</h3>
+    <ul>
+      <li>Always assign a <strong>Brand</strong> and <strong>Region</strong> to every piece of content — this ensures the right team sees the right work.</li>
+      <li>Use <strong>Projects</strong> to group related content. For example, one project per campaign or event.</li>
+      <li>Set <strong>deadlines</strong> on all deliverables so the automated reminder system can alert your team in advance.</li>
+      <li>Add <strong>tags</strong> to assets so they are easy to find later.</li>
+    </ul>
+
+    <h3>Workflow Efficiency</h3>
+    <ul>
+      <li>Use the <strong>Duplicate</strong> function (⋮ menu) on posts, tasks, and events to save time on recurring content.</li>
+      <li>Set <strong>default team members</strong> when creating a project — all deliverables in the project will be pre-assigned to that Designer, Copywriter, and Publisher.</li>
+      <li>Use the <strong>Calendar view</strong> on the Dashboard to spot content gaps and scheduling conflicts at a glance.</li>
+      <li>Check the <strong>Publishing Queue</strong> daily if you are a publisher — items waiting there are approved and ready to go live.</li>
+    </ul>
+
+    <h3>Communication</h3>
+    <ul>
+      <li>Make sure your Slack account details are up to date in your user profile so you receive Slack notifications correctly.</li>
+      <li>When assigning deliverables, add clear <strong>reference images</strong> and design specs to avoid back-and-forth with your designer.</li>
+      <li>Use the task <strong>description field</strong> to add context, links, or brief details rather than messaging separately.</li>
+    </ul>
+
+    <h3>Common Questions</h3>
+    <div class="card" style="margin-bottom:12px;">
+      <h4 style="margin-top:0;">I can't see a brand in the dropdown. What's wrong?</h4>
+      <p style="margin:0; font-size:13px;">The brand may be deactivated or you may not be assigned to that region. Ask your Admin to check brand and region assignments in Settings.</p>
+    </div>
+    <div class="card" style="margin-bottom:12px;">
+      <h4 style="margin-top:0;">The publish button isn't working for a platform.</h4>
+      <p style="margin:0; font-size:13px;">The platform integration may not be connected or the token may have expired. Check Settings → Integrations or contact your Admin.</p>
+    </div>
+    <div class="card" style="margin-bottom:12px;">
+      <h4 style="margin-top:0;">I'm not receiving Slack notifications.</h4>
+      <p style="margin:0; font-size:13px;">Ensure your Slack username is configured in your user profile. Also check that the Slack integration is active in Settings. If the issue persists, contact your Admin.</p>
+    </div>
+    <div class="card">
+      <h4 style="margin-top:0;">How do I reset my password?</h4>
+      <p style="margin:0; font-size:13px;">Contact your Administrator. They can reset your password in Settings → Users.</p>
+    </div>
+  </section>
+
+  <!-- ── FOOTER ── -->
+  <footer class="guide-footer">
+    <p>
+      <span>Bloom &amp; Grow Marketing Planner</span> · User Guide · Version 3.0 · March 2026<br />
+      For technical support contact your platform Administrator.
+    </p>
+  </footer>
+
+</main>
+</body>
+</html>
