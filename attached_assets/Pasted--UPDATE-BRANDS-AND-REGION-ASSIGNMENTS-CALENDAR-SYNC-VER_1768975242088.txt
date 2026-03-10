@@ -1,0 +1,972 @@
+# UPDATE BRANDS AND REGION ASSIGNMENTS - CALENDAR SYNC VERIFICATION
+
+## Objective
+Update the Marketing Planner system with the correct brand list and assign brands to specific regions. Ensure all brand calendars properly sync with the main dashboard calendar.
+
+---
+
+## BRAND & REGION MAPPING
+
+### Current Regions
+Based on your system, you have these regions:
+- **ID** - Indonesia
+- **HK** - Hong Kong
+- **MY** - Malaysia  
+- **SG** - Singapore
+
+### Brand-Region Assignments
+
+**Indonesia (ID):**
+1. Ergobaby
+2. Baby Central
+3. Bloom Connect
+4. Bubble
+5. Bloom Create
+
+**Hong Kong (HK):**
+1. Ergobaby
+2. Skip Hop
+3. Bloom Connect
+4. Baby Central
+5. Bloom Create
+
+**Malaysia (MY):**
+1. Bloom Connect
+2. Baby Central
+3. Beaba
+4. Skip Hop
+5. Ergobaby
+6. Bloom Create
+
+**Singapore (SG):**
+1. Bloom Connect
+2. Baby Central
+3. Beaba
+4. Skip Hop
+5. Ergobaby
+6. Micro
+7. Bloom Create
+
+### Complete Brand List (Alphabetical)
+1. Baby Central - Available in: ID, HK, MY, SG (4 regions)
+2. Beaba - Available in: MY, SG (2 regions)
+3. Bloom Connect - Available in: ID, HK, MY, SG (4 regions)
+4. Bloom Create - Available in: ID, HK, MY, SG (4 regions)
+5. Bubble - Available in: ID (1 region)
+6. Ergobaby - Available in: ID, HK, MY, SG (4 regions)
+7. Micro - Available in: SG (1 region)
+8. Skip Hop - Available in: HK, MY, SG (3 regions)
+
+**Total: 8 unique brands across 4 regions**
+
+---
+
+## STEP 1: DATABASE SCHEMA UPDATE
+
+### 1.1 Update Brand-Region Relationship
+
+**Current Schema Issue:**
+Brands table has a single `regionId` field, but brands can operate in MULTIPLE regions.
+
+**Solution:**
+Create a many-to-many relationship table.
+
+**New Schema:**
+```typescript
+// In shared/schema.ts
+
+// Remove regionId from brands table (if it exists)
+export const brands = pgTable("brands", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  name: text("name").notNull().unique(),
+  color: text("color").notNull().default("#F7971C"),
+  isActive: boolean("is_active").notNull().default(true),
+  dreamPimUrl: text("dream_pim_url"),
+  assetPortalUrl: text("asset_portal_url"),
+  assetPortalName: text("asset_portal_name").default("Asset Portal"),
+  description: text("description"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+// NEW: Brand-Region junction table
+export const brandRegions = pgTable("brand_regions", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  brandId: varchar("brand_id").notNull().references(() => brands.id, { onDelete: "cascade" }),
+  regionId: varchar("region_id").notNull().references(() => regions.id, { onDelete: "cascade" }),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+}, (table) => ({
+  // Ensure unique brand-region combinations
+  uniqueBrandRegion: unique().on(table.brandId, table.regionId),
+}));
+
+// Relations
+export const brandsRelations = relations(brands, ({ many }) => ({
+  regions: many(brandRegions),
+}));
+
+export const brandRegionsRelations = relations(brandRegions, ({ one }) => ({
+  brand: one(brands, { fields: [brandRegions.brandId], references: [brands.id] }),
+  region: one(regions, { fields: [brandRegions.regionId], references: [regions.id] }),
+}));
+
+// Types
+export const insertBrandRegionSchema = createInsertSchema(brandRegions);
+export const selectBrandRegionSchema = createSelectSchema(brandRegions);
+export type BrandRegion = z.infer<typeof selectBrandRegionSchema>;
+export type InsertBrandRegion = z.infer<typeof insertBrandRegionSchema>;
+```
+
+### 1.2 Run Database Migration
+
+```bash
+# Push schema changes to database
+npm run db:push
+```
+
+---
+
+## STEP 2: CREATE SEED SCRIPT FOR BRANDS
+
+### 2.1 Brand Seed Data with Assigned Colors
+
+**File: `server/seed-brands.ts`**
+
+```typescript
+import { db } from "./db";
+import { brands, regions, brandRegions } from "@shared/schema";
+import { eq } from "drizzle-orm";
+
+// Define brands with unique colors
+const brandData = [
+  { name: "Baby Central", color: "#FF6B6B" },      // Coral Red
+  { name: "Beaba", color: "#4ECDC4" },             // Turquoise
+  { name: "Bloom Connect", color: "#95E1D3" },     // Mint Green
+  { name: "Bloom Create", color: "#F38181" },      // Rose Pink
+  { name: "Bubble", color: "#AA96DA" },            // Lavender
+  { name: "Ergobaby", color: "#FCBAD3" },          // Light Pink
+  { name: "Micro", color: "#A8E6CF" },             // Seafoam
+  { name: "Skip Hop", color: "#FFD93D" },          // Golden Yellow
+];
+
+// Brand-Region mapping
+const brandRegionMapping = {
+  "Baby Central": ["ID", "HK", "MY", "SG"],
+  "Beaba": ["MY", "SG"],
+  "Bloom Connect": ["ID", "HK", "MY", "SG"],
+  "Bloom Create": ["ID", "HK", "MY", "SG"],
+  "Bubble": ["ID"],
+  "Ergobaby": ["ID", "HK", "MY", "SG"],
+  "Micro": ["SG"],
+  "Skip Hop": ["HK", "MY", "SG"],
+};
+
+export async function seedBrands() {
+  console.log("🌱 Seeding brands...");
+
+  try {
+    // Get all regions
+    const allRegions = await db.select().from(regions);
+    const regionMap = Object.fromEntries(
+      allRegions.map(r => [r.code, r.id])
+    );
+
+    console.log("Found regions:", Object.keys(regionMap));
+
+    // Delete existing brand-region relationships
+    await db.delete(brandRegions);
+    console.log("✓ Cleared existing brand-region relationships");
+
+    // Delete existing brands
+    await db.delete(brands);
+    console.log("✓ Cleared existing brands");
+
+    // Insert brands
+    for (const brand of brandData) {
+      const [newBrand] = await db.insert(brands).values({
+        name: brand.name,
+        color: brand.color,
+        isActive: true,
+      }).returning();
+
+      console.log(`✓ Created brand: ${brand.name}`);
+
+      // Assign to regions
+      const regionCodes = brandRegionMapping[brand.name as keyof typeof brandRegionMapping];
+      for (const regionCode of regionCodes) {
+        const regionId = regionMap[regionCode];
+        if (regionId) {
+          await db.insert(brandRegions).values({
+            brandId: newBrand.id,
+            regionId: regionId,
+          });
+          console.log(`  → Assigned to ${regionCode}`);
+        } else {
+          console.warn(`  ⚠ Region ${regionCode} not found in database`);
+        }
+      }
+    }
+
+    console.log("✅ Brand seeding complete!");
+    console.log("\nBrand Summary:");
+    console.log("- Baby Central: 4 regions (ID, HK, MY, SG)");
+    console.log("- Beaba: 2 regions (MY, SG)");
+    console.log("- Bloom Connect: 4 regions (ID, HK, MY, SG)");
+    console.log("- Bloom Create: 4 regions (ID, HK, MY, SG)");
+    console.log("- Bubble: 1 region (ID)");
+    console.log("- Ergobaby: 4 regions (ID, HK, MY, SG)");
+    console.log("- Micro: 1 region (SG)");
+    console.log("- Skip Hop: 3 regions (HK, MY, SG)");
+
+  } catch (error) {
+    console.error("❌ Error seeding brands:", error);
+    throw error;
+  }
+}
+
+// Run if executed directly
+if (require.main === module) {
+  seedBrands()
+    .then(() => process.exit(0))
+    .catch((error) => {
+      console.error(error);
+      process.exit(1);
+    });
+}
+```
+
+### 2.2 Run Seed Script
+
+```bash
+# Execute the seed script
+npx tsx server/seed-brands.ts
+```
+
+---
+
+## STEP 3: UPDATE STORAGE LAYER
+
+### 3.1 Add Brand-Region Query Methods
+
+**File: `server/storage.ts`**
+
+```typescript
+export interface IStorage {
+  // ... existing methods ...
+  
+  // NEW: Brand-Region methods
+  getBrandRegions(brandId: string): Promise<BrandRegion[]>;
+  getRegionBrands(regionId: string): Promise<Brand[]>;
+  assignBrandToRegion(brandId: string, regionId: string): Promise<BrandRegion>;
+  removeBrandFromRegion(brandId: string, regionId: string): Promise<boolean>;
+}
+
+export class DatabaseStorage implements IStorage {
+  // ... existing implementations ...
+  
+  // NEW: Get all regions for a brand
+  async getBrandRegions(brandId: string): Promise<BrandRegion[]> {
+    return await db
+      .select()
+      .from(brandRegions)
+      .where(eq(brandRegions.brandId, brandId));
+  }
+  
+  // NEW: Get all brands available in a region
+  async getRegionBrands(regionId: string): Promise<Brand[]> {
+    const brandRegionRecords = await db
+      .select({
+        brand: brands,
+      })
+      .from(brandRegions)
+      .innerJoin(brands, eq(brandRegions.brandId, brands.id))
+      .where(eq(brandRegions.regionId, regionId));
+    
+    return brandRegionRecords.map(record => record.brand);
+  }
+  
+  // NEW: Assign brand to region
+  async assignBrandToRegion(brandId: string, regionId: string): Promise<BrandRegion> {
+    const [created] = await db
+      .insert(brandRegions)
+      .values({ brandId, regionId })
+      .returning();
+    return created;
+  }
+  
+  // NEW: Remove brand from region
+  async removeBrandFromRegion(brandId: string, regionId: string): Promise<boolean> {
+    await db
+      .delete(brandRegions)
+      .where(
+        and(
+          eq(brandRegions.brandId, brandId),
+          eq(brandRegions.regionId, regionId)
+        )
+      );
+    return true;
+  }
+  
+  // UPDATE: Get brand with its regions
+  async getBrand(id: string): Promise<Brand & { regions?: Region[] } | undefined> {
+    const [brand] = await db.select().from(brands).where(eq(brands.id, id));
+    if (!brand) return undefined;
+    
+    // Get associated regions
+    const brandRegionRecords = await db
+      .select({
+        region: regions,
+      })
+      .from(brandRegions)
+      .innerJoin(regions, eq(brandRegions.regionId, regions.id))
+      .where(eq(brandRegions.brandId, id));
+    
+    return {
+      ...brand,
+      regions: brandRegionRecords.map(record => record.region),
+    };
+  }
+  
+  // UPDATE: Get all brands with their regions
+  async getBrands(): Promise<Array<Brand & { regions?: Region[] }>> {
+    const allBrands = await db.select().from(brands).orderBy(asc(brands.name));
+    
+    // Get all brand-region relationships
+    const allBrandRegions = await db
+      .select()
+      .from(brandRegions)
+      .innerJoin(regions, eq(brandRegions.regionId, regions.id));
+    
+    // Map regions to brands
+    return allBrands.map(brand => ({
+      ...brand,
+      regions: allBrandRegions
+        .filter(br => br.brand_regions.brandId === brand.id)
+        .map(br => br.regions),
+    }));
+  }
+}
+```
+
+---
+
+## STEP 4: UPDATE API ROUTES
+
+### 4.1 Add Brand-Region Management Endpoints
+
+**File: `server/routes.ts`**
+
+```typescript
+// Get regions for a specific brand
+app.get("/api/brands/:id/regions", authenticateToken, async (req: any, res) => {
+  try {
+    const brandRegions = await storage.getBrandRegions(req.params.id);
+    res.json(brandRegions);
+  } catch (error) {
+    console.error("Get brand regions error:", error);
+    res.status(500).json({ message: "Internal server error" });
+  }
+});
+
+// Get brands available in a specific region
+app.get("/api/regions/:id/brands", authenticateToken, async (req: any, res) => {
+  try {
+    const brands = await storage.getRegionBrands(req.params.id);
+    res.json(brands);
+  } catch (error) {
+    console.error("Get region brands error:", error);
+    res.status(500).json({ message: "Internal server error" });
+  }
+});
+
+// Assign brand to region (admin only)
+app.post("/api/brands/:brandId/regions/:regionId", authenticateToken, requireAdmin, async (req: any, res) => {
+  try {
+    const { brandId, regionId } = req.params;
+    const brandRegion = await storage.assignBrandToRegion(brandId, regionId);
+    res.status(201).json(brandRegion);
+  } catch (error) {
+    console.error("Assign brand to region error:", error);
+    res.status(500).json({ message: "Internal server error" });
+  }
+});
+
+// Remove brand from region (admin only)
+app.delete("/api/brands/:brandId/regions/:regionId", authenticateToken, requireAdmin, async (req: any, res) => {
+  try {
+    const { brandId, regionId } = req.params;
+    await storage.removeBrandFromRegion(brandId, regionId);
+    res.status(204).send();
+  } catch (error) {
+    console.error("Remove brand from region error:", error);
+    res.status(500).json({ message: "Internal server error" });
+  }
+});
+```
+
+---
+
+## STEP 5: UPDATE UI COMPONENTS
+
+### 5.1 Update Brand Display to Show Regions
+
+**File: `client/src/pages/brand-page.tsx`**
+
+```typescript
+export default function BrandPage() {
+  const { brandId } = useParams();
+
+  const { data: brand } = useQuery({
+    queryKey: ["/api/brands", brandId],
+    queryFn: async () => {
+      const res = await fetch(`/api/brands/${brandId}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      return res.json();
+    },
+  });
+
+  return (
+    <div className="p-6 space-y-6">
+      {/* Brand Header */}
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-4">
+          <div 
+            className="w-16 h-16 rounded-xl shadow-lg" 
+            style={{ backgroundColor: brand?.color }}
+          />
+          <div>
+            <h1 className="text-3xl font-bold">{brand?.name}</h1>
+            <div className="flex items-center gap-2 mt-2">
+              <p className="text-muted-foreground">Available in:</p>
+              {brand?.regions?.map((region: any) => (
+                <Badge key={region.id} variant="outline">
+                  {region.name} ({region.code})
+                </Badge>
+              ))}
+            </div>
+          </div>
+        </div>
+        {/* ... rest of component ... */}
+      </div>
+    </div>
+  );
+}
+```
+
+### 5.2 Update Sidebar to Show Brand-Region Context
+
+**File: `client/src/components/layout/app-sidebar.tsx`**
+
+```typescript
+export function AppSidebar() {
+  const { data: brands } = useQuery({
+    queryKey: ["/api/brands"],
+    queryFn: async () => {
+      const res = await fetch("/api/brands", {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      return res.json();
+    },
+  });
+
+  // Get current user's region to highlight relevant brands
+  const { data: currentUser } = useQuery({
+    queryKey: ["/api/auth/me"],
+  });
+
+  const activeBrands = brands?.filter((b: any) => b.isActive) || [];
+
+  return (
+    <Sidebar>
+      <SidebarContent>
+        {/* ... main menu ... */}
+        
+        {/* BRANDS SECTION */}
+        <SidebarGroup>
+          <SidebarGroupLabel>Brands</SidebarGroupLabel>
+          <SidebarGroupContent>
+            <SidebarMenu>
+              {activeBrands.map((brand: any) => {
+                // Check if brand is in user's region
+                const inUserRegion = brand.regions?.some(
+                  (r: any) => r.id === currentUser?.regionId
+                );
+                
+                return (
+                  <SidebarMenuItem key={brand.id}>
+                    <SidebarMenuButton asChild>
+                      <a href={`/brands/${brand.id}`} className="flex items-center gap-2">
+                        <div 
+                          className="w-3 h-3 rounded-full" 
+                          style={{ backgroundColor: brand.color }}
+                        />
+                        <span className={inUserRegion ? "font-semibold" : ""}>
+                          {brand.name}
+                        </span>
+                        {inUserRegion && (
+                          <Badge variant="secondary" className="ml-auto text-xs">
+                            Your Region
+                          </Badge>
+                        )}
+                      </a>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                );
+              })}
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
+      </SidebarContent>
+    </Sidebar>
+  );
+}
+```
+
+### 5.3 Filter Content Creation by Brand-Region Availability
+
+**File: `client/src/pages/social.tsx` (and similar for email, events)**
+
+```typescript
+function SocialPostForm({ regionId }: { regionId?: string }) {
+  // Get brands available in the selected region
+  const { data: availableBrands } = useQuery({
+    queryKey: ["/api/regions", regionId, "brands"],
+    queryFn: async () => {
+      if (!regionId) {
+        // Show all brands if no region selected
+        const res = await fetch("/api/brands", {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        return res.json();
+      }
+      
+      const res = await fetch(`/api/regions/${regionId}/brands`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      return res.json();
+    },
+    enabled: true,
+  });
+
+  return (
+    <form>
+      {/* Region Selector */}
+      <FormField label="Region">
+        <Select 
+          value={formData.regionId}
+          onValueChange={(value) => {
+            setFormData({...formData, regionId: value, brandId: ""});
+          }}
+        >
+          <SelectTrigger>
+            <SelectValue placeholder="Select region" />
+          </SelectTrigger>
+          <SelectContent>
+            {regions?.map((region: any) => (
+              <SelectItem key={region.id} value={region.id}>
+                {region.name}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </FormField>
+
+      {/* Brand Selector - Filtered by Region */}
+      <FormField label="Brand">
+        <Select 
+          value={formData.brandId}
+          onValueChange={(value) => setFormData({...formData, brandId: value})}
+          disabled={!formData.regionId}
+        >
+          <SelectTrigger>
+            <SelectValue placeholder={
+              formData.regionId 
+                ? "Select brand" 
+                : "Select region first"
+            } />
+          </SelectTrigger>
+          <SelectContent>
+            {availableBrands?.map((brand: any) => (
+              <SelectItem key={brand.id} value={brand.id}>
+                <div className="flex items-center gap-2">
+                  <div 
+                    className="w-3 h-3 rounded-full" 
+                    style={{ backgroundColor: brand.color }}
+                  />
+                  {brand.name}
+                </div>
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </FormField>
+      
+      {/* Show warning if brand not available in selected region */}
+      {formData.regionId && formData.brandId && availableBrands && 
+       !availableBrands.find((b: any) => b.id === formData.brandId) && (
+        <Alert variant="warning">
+          <AlertCircle className="h-4 w-4" />
+          <AlertDescription>
+            This brand is not available in the selected region
+          </AlertDescription>
+        </Alert>
+      )}
+      
+      {/* ... rest of form ... */}
+    </form>
+  );
+}
+```
+
+---
+
+## STEP 6: CALENDAR SYNCHRONIZATION VERIFICATION
+
+### 6.1 Ensure Brand Calendars Feed Main Calendar
+
+**The synchronization is AUTOMATIC because all calendars query the same database tables.**
+
+**Architecture:**
+
+```
+Database Tables (Single Source of Truth)
+    ├── social_posts (with brandId, regionId)
+    ├── email_campaigns (with brandId, regionId)
+    ├── events (linked to brands via eventBrands)
+    ├── promotions (with brandId)
+    └── tasks (with brandId, regionId)
+           ↓
+           ↓ [Query Layer]
+           ↓
+    ┌──────┴───────┬────────────┬────────────┐
+    ↓              ↓            ↓            ↓
+Dashboard      Skip Hop     Ergobaby     Baby Central
+Calendar       Calendar     Calendar     Calendar
+(ALL brands)   (filtered)   (filtered)   (filtered)
+```
+
+### 6.2 Verification Test Script
+
+**File: `test/calendar-sync-test.ts`**
+
+```typescript
+import { storage } from "../server/storage";
+
+async function testCalendarSync() {
+  console.log("🧪 Testing Calendar Synchronization...\n");
+
+  try {
+    // 1. Get all brands
+    const brands = await storage.getBrands();
+    console.log(`✓ Found ${brands.length} brands`);
+
+    // 2. Get a test brand (e.g., Baby Central)
+    const babyCentral = brands.find(b => b.name === "Baby Central");
+    if (!babyCentral) {
+      throw new Error("Baby Central not found");
+    }
+    console.log(`✓ Testing with brand: ${babyCentral.name}`);
+    console.log(`  Regions: ${babyCentral.regions?.map(r => r.code).join(", ")}`);
+
+    // 3. Get Baby Central's content
+    const babyCentralPosts = await storage.getSocialPosts({ 
+      brandId: babyCentral.id 
+    });
+    console.log(`✓ Baby Central has ${babyCentralPosts.length} social posts`);
+
+    // 4. Get ALL posts (main calendar view)
+    const allPosts = await storage.getSocialPosts({});
+    console.log(`✓ Main calendar shows ${allPosts.length} total posts`);
+
+    // 5. Verify Baby Central posts are included in main calendar
+    const babyCentralPostsInMain = allPosts.filter(
+      p => p.brandId === babyCentral.id
+    );
+    console.log(`✓ Baby Central posts in main calendar: ${babyCentralPostsInMain.length}`);
+
+    // 6. Verification
+    if (babyCentralPosts.length === babyCentralPostsInMain.length) {
+      console.log("\n✅ SYNC VERIFIED: Brand calendar matches main calendar");
+      console.log("   All Baby Central posts appear in both views");
+    } else {
+      console.error("\n❌ SYNC ISSUE: Mismatch detected");
+      console.error(`   Brand view: ${babyCentralPosts.length} posts`);
+      console.error(`   Main view: ${babyCentralPostsInMain.length} posts`);
+    }
+
+    // 7. Test region filtering
+    const sgRegion = babyCentral.regions?.find(r => r.code === "SG");
+    if (sgRegion) {
+      const sgPosts = await storage.getSocialPosts({
+        brandId: babyCentral.id,
+        regionId: sgRegion.id,
+      });
+      console.log(`\n✓ Baby Central SG posts: ${sgPosts.length}`);
+    }
+
+    console.log("\n✅ All calendar sync tests passed!");
+
+  } catch (error) {
+    console.error("\n❌ Test failed:", error);
+    throw error;
+  }
+}
+
+// Run test
+testCalendarSync()
+  .then(() => process.exit(0))
+  .catch(() => process.exit(1));
+```
+
+**Run Test:**
+```bash
+npx tsx test/calendar-sync-test.ts
+```
+
+### 6.3 Key Synchronization Points
+
+✅ **Single Database** - All calendars query the same tables
+✅ **No Data Duplication** - Content exists once, viewed multiple ways
+✅ **Real-time Updates** - Changes immediately visible everywhere
+✅ **Filter-based Views** - Brand pages add `WHERE brandId = X` to queries
+✅ **Region Filtering** - Additional `WHERE regionId = Y` when needed
+
+---
+
+## STEP 7: ADMIN INTERFACE FOR BRAND-REGION MANAGEMENT
+
+### 7.1 Add Brand Management to Settings
+
+**File: `client/src/pages/settings.tsx`**
+
+```typescript
+function BrandSettings() {
+  const { data: brands } = useQuery({ queryKey: ["/api/brands"] });
+  const { data: regions } = useQuery({ queryKey: ["/api/regions"] });
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Brand Management</CardTitle>
+      </CardHeader>
+      <CardContent>
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Brand</TableHead>
+              <TableHead>Color</TableHead>
+              <TableHead>Regions</TableHead>
+              <TableHead>Actions</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {brands?.map((brand: any) => (
+              <TableRow key={brand.id}>
+                <TableCell>
+                  <div className="flex items-center gap-2">
+                    <div 
+                      className="w-4 h-4 rounded-full" 
+                      style={{ backgroundColor: brand.color }}
+                    />
+                    {brand.name}
+                  </div>
+                </TableCell>
+                <TableCell>
+                  <code className="text-xs">{brand.color}</code>
+                </TableCell>
+                <TableCell>
+                  <div className="flex flex-wrap gap-1">
+                    {brand.regions?.map((region: any) => (
+                      <Badge key={region.id} variant="outline">
+                        {region.code}
+                      </Badge>
+                    ))}
+                  </div>
+                </TableCell>
+                <TableCell>
+                  <Button 
+                    variant="ghost" 
+                    size="sm"
+                    onClick={() => openBrandEditDialog(brand)}
+                  >
+                    Edit
+                  </Button>
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </CardContent>
+    </Card>
+  );
+}
+```
+
+---
+
+## IMPLEMENTATION CHECKLIST
+
+### Phase 1: Database Setup ✓
+- [ ] Update schema to add `brand_regions` junction table
+- [ ] Remove old `regionId` from brands table (if exists)
+- [ ] Run `npm run db:push` to apply schema changes
+
+### Phase 2: Seed Brands ✓
+- [ ] Create `server/seed-brands.ts` with brand data
+- [ ] Run `npx tsx server/seed-brands.ts`
+- [ ] Verify all 8 brands created
+- [ ] Verify brand-region assignments correct
+
+### Phase 3: Storage Layer ✓
+- [ ] Add brand-region query methods to storage interface
+- [ ] Implement `getBrandRegions()`, `getRegionBrands()`
+- [ ] Update `getBrand()` to include regions
+- [ ] Update `getBrands()` to include regions
+
+### Phase 4: API Routes ✓
+- [ ] Add `/api/brands/:id/regions` endpoint
+- [ ] Add `/api/regions/:id/brands` endpoint
+- [ ] Add brand-region assignment endpoints
+- [ ] Test all endpoints with curl/Postman
+
+### Phase 5: UI Updates ✓
+- [ ] Update brand pages to show regions
+- [ ] Update sidebar to highlight user's region brands
+- [ ] Add region-based brand filtering to forms
+- [ ] Update settings page with brand management
+
+### Phase 6: Testing ✓
+- [ ] Run calendar sync verification test
+- [ ] Test creating content for each brand
+- [ ] Verify brand calendars show correct content
+- [ ] Verify main calendar shows all content
+- [ ] Test region filtering works correctly
+
+---
+
+## VERIFICATION COMMANDS
+
+### 1. Check Database
+```sql
+-- View all brands
+SELECT * FROM brands ORDER BY name;
+
+-- View brand-region assignments
+SELECT 
+  b.name as brand_name,
+  r.code as region_code,
+  r.name as region_name
+FROM brand_regions br
+JOIN brands b ON br.brand_id = b.id
+JOIN regions r ON br.region_id = r.id
+ORDER BY b.name, r.code;
+
+-- Count brands per region
+SELECT 
+  r.code,
+  r.name,
+  COUNT(br.brand_id) as brand_count
+FROM regions r
+LEFT JOIN brand_regions br ON r.id = br.region_id
+GROUP BY r.code, r.name
+ORDER BY r.code;
+```
+
+### 2. Test API Endpoints
+```bash
+# Get all brands with regions
+curl -H "Authorization: Bearer YOUR_TOKEN" \
+     http://localhost:5000/api/brands
+
+# Get brands for Singapore
+curl -H "Authorization: Bearer YOUR_TOKEN" \
+     http://localhost:5000/api/regions/SINGAPORE_ID/brands
+
+# Get regions for Baby Central
+curl -H "Authorization: Bearer YOUR_TOKEN" \
+     http://localhost:5000/api/brands/BABY_CENTRAL_ID/regions
+```
+
+### 3. Visual Verification
+- [ ] Open Dashboard - see all 8 brands in sidebar
+- [ ] Click "Baby Central" - see 4 region badges (ID, HK, MY, SG)
+- [ ] Click "Bubble" - see 1 region badge (ID only)
+- [ ] Click "Skip Hop" - see 3 region badges (HK, MY, SG)
+- [ ] Open main calendar - see content from all brands
+- [ ] Open Baby Central page - see only Baby Central content
+- [ ] Create new post for Singapore region - see only SG brands available
+
+---
+
+## EXPECTED RESULTS
+
+### Brand List (Alphabetical)
+1. ✓ Baby Central (4 regions) - #FF6B6B
+2. ✓ Beaba (2 regions) - #4ECDC4
+3. ✓ Bloom Connect (4 regions) - #95E1D3
+4. ✓ Bloom Create (4 regions) - #F38181
+5. ✓ Bubble (1 region) - #AA96DA
+6. ✓ Ergobaby (4 regions) - #FCBAD3
+7. ✓ Micro (1 region) - #A8E6CF
+8. ✓ Skip Hop (3 regions) - #FFD93D
+
+### Region Distribution
+- **ID (Indonesia):** 5 brands
+- **HK (Hong Kong):** 5 brands
+- **MY (Malaysia):** 6 brands
+- **SG (Singapore):** 7 brands (most brands available)
+
+### Calendar Sync
+✅ Main dashboard calendar shows ALL content from ALL brands
+✅ Each brand page shows ONLY that brand's content
+✅ Content appears on both calendars simultaneously (no delay)
+✅ Updating content in one view updates all views instantly
+✅ Deleting content removes from all calendar views
+
+---
+
+## TROUBLESHOOTING
+
+### Issue 1: Brands Not Appearing
+**Solution:** 
+```bash
+# Re-run seed script
+npx tsx server/seed-brands.ts
+```
+
+### Issue 2: Calendar Shows No Content
+**Check:**
+- Is `brandId` being passed in queries?
+- Are there actually posts/emails/events created?
+- Check browser console for API errors
+
+### Issue 3: Wrong Brands in Region Filter
+**Check:**
+```sql
+-- Verify brand-region relationships
+SELECT b.name, r.code 
+FROM brand_regions br
+JOIN brands b ON br.brand_id = b.id
+JOIN regions r ON br.region_id = r.id;
+```
+
+### Issue 4: Calendar Not Syncing
+**This should not happen** because all calendars query the same database.
+If it does, check:
+- Are you caching queries? (Clear React Query cache)
+- Are you filtering correctly in components?
+- Check network tab for actual API responses
+
+---
+
+## FINAL NOTES
+
+This implementation:
+✅ Updates to the correct 8 brands
+✅ Assigns brands to appropriate regions
+✅ Maintains calendar synchronization automatically
+✅ Allows region-based brand filtering in forms
+✅ Provides admin interface for brand management
+✅ Is scalable for adding new brands/regions
+
+All brand calendars feed into the main calendar because they all query the same database tables - just with different filters applied. No special sync mechanism needed!

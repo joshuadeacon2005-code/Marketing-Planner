@@ -1,0 +1,486 @@
+# USER CREATION DEBUG & FIX PROMPT
+
+## Context
+Your Marketing Planner application is throwing "Failed to create user. Please try again." errors. This document provides a systematic debugging approach.
+
+## System Architecture
+- **Framework**: Express.js + React + TypeScript
+- **Database**: PostgreSQL with Drizzle ORM
+- **Auth**: JWT with bcrypt password hashing
+- **Deployment**: Replit environment
+
+---
+
+## STEP-BY-STEP DEBUGGING CHECKLIST
+
+### 1. DATABASE CONNECTION VERIFICATION
+
+**Check if database is accessible:**
+```bash
+# Test database connection
+node -e "
+const pg = require('pg');
+const pool = new pg.Pool({ connectionString: process.env.DATABASE_URL });
+pool.query('SELECT NOW()', (err, res) => {
+  if (err) console.error('DB Error:', err);
+  else console.log('DB Connected:', res.rows[0]);
+  pool.end();
+});
+"
+```
+
+**Verify DATABASE_URL environment variable:**
+```bash
+# Check if DATABASE_URL is set
+echo $DATABASE_URL
+# or in node
+node -e "console.log('DATABASE_URL exists:', !!process.env.DATABASE_URL)"
+```
+
+**Fix if missing:**
+- In Replit: Go to Secrets tab → Add `DATABASE_URL`
+- Format: `postgresql://user:password@host:port/database`
+
+---
+
+### 2. VERIFY DATABASE SCHEMA EXISTS
+
+**Check if users table exists:**
+```bash
+# Run migration to create tables
+npm run db:push
+```
+
+**Manual verification:**
+```sql
+-- Connect to your database and run:
+SELECT table_name 
+FROM information_schema.tables 
+WHERE table_schema = 'public' 
+  AND table_name = 'users';
+
+-- Check columns
+\d users
+```
+
+**Expected users table structure:**
+- id (varchar, primary key, UUID)
+- email (text, unique, not null)
+- password (text, not null)
+- name (text, not null)
+- role (enum: ADMIN/DESIGNER/PUBLISHER/USER)
+- regionId (varchar, foreign key)
+- isActive (boolean, default true)
+- slackUserId (text, nullable)
+- createdAt (timestamp, default now)
+
+---
+
+### 3. CHECK SERVER LOGS FOR SPECIFIC ERROR
+
+**Add detailed logging to route handler:**
+
+Edit `/server/routes.ts` line 114-140:
+
+```typescript
+app.post("/api/users", authenticateToken, requireAdmin, async (req: any, res) => {
+  try {
+    console.log('=== USER CREATION ATTEMPT ===');
+    console.log('Request body:', JSON.stringify(req.body, null, 2));
+    console.log('User role:', req.user?.role);
+    
+    const data = insertUserSchema.parse(req.body);
+    console.log('Parsed data:', JSON.stringify(data, null, 2));
+    
+    // Check if email already exists
+    const existingUser = await storage.getUserByEmail(data.email);
+    console.log('Existing user check:', existingUser ? 'FOUND' : 'NOT FOUND');
+    
+    if (existingUser) {
+      return res.status(400).json({ message: "A user with this email already exists" });
+    }
+    
+    console.log('Hashing password...');
+    const hashedPassword = await bcrypt.hash(data.password, 10);
+    console.log('Password hashed successfully');
+    
+    console.log('Creating user in database...');
+    const user = await storage.createUser({ ...data, password: hashedPassword });
+    console.log('User created:', user.id);
+    
+    const { password: _, ...userWithoutPassword } = user;
+    res.status(201).json(userWithoutPassword);
+  } catch (error) {
+    console.error('=== USER CREATION ERROR ===');
+    console.error('Error type:', error?.constructor?.name);
+    console.error('Error message:', error?.message);
+    console.error('Error stack:', error?.stack);
+    
+    if (error instanceof z.ZodError) {
+      console.error('Validation errors:', JSON.stringify(error.errors, null, 2));
+      return res.status(400).json({ message: "Invalid input", errors: error.errors });
+    }
+    
+    // Handle database constraint violations
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    if (errorMessage.includes('duplicate') || errorMessage.includes('unique')) {
+      return res.status(400).json({ message: "A user with this email already exists" });
+    }
+    
+    res.status(500).json({ 
+      message: "Failed to create user. Please try again.",
+      debug: process.env.NODE_ENV === 'development' ? errorMessage : undefined
+    });
+  }
+});
+```
+
+---
+
+### 4. VERIFY INPUT VALIDATION SCHEMA
+
+**Check the insertUserSchema:**
+
+Look at `/shared/schema.ts` for:
+```typescript
+export const insertUserSchema = createInsertSchema(users).pick({
+  email: true,
+  password: true,
+  name: true,
+  role: true,
+  regionId: true,
+});
+```
+
+**Common validation issues:**
+- Email format invalid
+- Password too short (add min length if needed)
+- Missing required fields
+- Invalid role enum value
+- RegionId doesn't exist in database
+
+---
+
+### 5. CHECK FRONTEND REQUEST
+
+**Verify what's being sent from the client:**
+
+In browser DevTools Network tab:
+1. Open Settings → Users
+2. Try to create a user
+3. Check the `POST /api/users` request
+4. Inspect Request Payload
+
+**Expected payload:**
+```json
+{
+  "email": "user@example.com",
+  "password": "securepassword123",
+  "name": "John Doe",
+  "role": "USER",
+  "regionId": "some-uuid-here"
+}
+```
+
+---
+
+### 6. AUTHENTICATION & AUTHORIZATION CHECKS
+
+**Verify you're logged in as ADMIN:**
+```javascript
+// Check your JWT token
+const token = localStorage.getItem('token');
+const payload = JSON.parse(atob(token.split('.')[1]));
+console.log('Current user role:', payload.role);
+// Should be "ADMIN"
+```
+
+**Test authentication:**
+```bash
+# Replace YOUR_TOKEN with actual JWT
+curl -H "Authorization: Bearer YOUR_TOKEN" \
+     http://localhost:5000/api/auth/me
+```
+
+---
+
+### 7. COMMON ISSUES & SOLUTIONS
+
+#### Issue 1: Database Connection Pool Exhausted
+**Symptoms:** Timeout errors, "too many clients"
+**Solution:**
+```typescript
+// In server/db.ts, add connection pool config:
+export const pool = new Pool({ 
+  connectionString: process.env.DATABASE_URL,
+  max: 20,  // maximum pool size
+  idleTimeoutMillis: 30000,
+  connectionTimeoutMillis: 2000,
+});
+```
+
+#### Issue 2: Password Hashing Fails
+**Symptoms:** Error during bcrypt.hash()
+**Solution:**
+```bash
+# Reinstall bcryptjs
+npm uninstall bcryptjs
+npm install bcryptjs@2.4.3
+```
+
+#### Issue 3: Database Constraint Violation
+**Symptoms:** "unique constraint violation"
+**Solution:**
+- Check for duplicate email in database
+- Ensure email is properly lowercase-normalized
+```typescript
+// In storage.ts, normalize email:
+async createUser(user: InsertUser): Promise<User> {
+  const normalizedUser = {
+    ...user,
+    email: user.email.toLowerCase().trim()
+  };
+  const [created] = await db.insert(users).values(normalizedUser).returning();
+  return created;
+}
+```
+
+#### Issue 4: Missing SESSION_SECRET
+**Symptoms:** "SESSION_SECRET environment variable is required"
+**Solution:**
+```bash
+# Add to Replit Secrets
+SESSION_SECRET=your-super-secret-jwt-key-here-minimum-32-characters
+```
+
+#### Issue 5: Foreign Key Constraint (regionId)
+**Symptoms:** "foreign key constraint violation"
+**Solution:**
+```sql
+-- Check if the regionId exists:
+SELECT * FROM regions WHERE id = 'the-region-id-from-request';
+
+-- If no regions exist, create one:
+INSERT INTO regions (name, code, timezone) 
+VALUES ('Global', 'GLOBAL', 'UTC');
+```
+
+#### Issue 6: Missing Required Environment Variables
+**Check all required env vars:**
+```bash
+echo "DATABASE_URL: ${DATABASE_URL:+SET}"
+echo "SESSION_SECRET: ${SESSION_SECRET:+SET}"
+echo "SLACK_BOT_TOKEN: ${SLACK_BOT_TOKEN:+SET}"
+```
+
+---
+
+### 8. QUICK DIAGNOSTIC SCRIPT
+
+**Create and run this diagnostic:**
+
+```typescript
+// test-user-creation.ts
+import { storage } from './server/storage';
+import bcrypt from 'bcryptjs';
+
+async function testUserCreation() {
+  try {
+    console.log('Testing user creation...');
+    
+    // Test 1: Database connection
+    const regions = await storage.getRegions();
+    console.log('✓ Database connected, found', regions.length, 'regions');
+    
+    // Test 2: Create test user
+    const testEmail = `test-${Date.now()}@example.com`;
+    const hashedPassword = await bcrypt.hash('testpass123', 10);
+    
+    const user = await storage.createUser({
+      email: testEmail,
+      password: hashedPassword,
+      name: 'Test User',
+      role: 'USER',
+      regionId: regions[0]?.id || null,
+    });
+    
+    console.log('✓ User created successfully:', user.id);
+    console.log('Email:', user.email);
+    console.log('Name:', user.name);
+    
+    // Test 3: Cleanup
+    // (You may want to delete the test user)
+    
+  } catch (error) {
+    console.error('✗ Test failed:', error);
+  }
+}
+
+testUserCreation();
+```
+
+Run with: `npx tsx test-user-creation.ts`
+
+---
+
+### 9. FRONTEND ERROR HANDLING
+
+**Improve error display in the frontend:**
+
+```typescript
+// In your user creation form
+try {
+  const response = await fetch('/api/users', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`
+    },
+    body: JSON.stringify(userData)
+  });
+  
+  const data = await response.json();
+  
+  if (!response.ok) {
+    console.error('Server error:', data);
+    throw new Error(data.message || 'Failed to create user');
+  }
+  
+  // Success
+  console.log('User created:', data);
+} catch (error) {
+  console.error('Frontend error:', error);
+  // Display specific error to user
+  alert(`Error: ${error.message}`);
+}
+```
+
+---
+
+### 10. DATABASE MIGRATION & SEED
+
+**If tables are missing or corrupted:**
+
+```bash
+# Reset database (WARNING: deletes all data)
+npm run db:push
+
+# Seed initial data
+npm run db:seed
+```
+
+**Check seed.ts for proper initialization:**
+```typescript
+// server/seed.ts should create:
+// - At least one region
+// - An admin user
+// - Default brands
+```
+
+---
+
+## PRODUCTION-READY FIX
+
+Once you've identified the issue, implement these improvements:
+
+### 1. Better Error Messages
+
+```typescript
+// Return specific errors to help debugging
+if (error instanceof Error) {
+  const errorDetails = {
+    constraint: error.message.includes('unique') ? 'email' : 'unknown',
+    hint: error.message.includes('unique') ? 
+      'This email is already registered' : 
+      'Database operation failed'
+  };
+  
+  return res.status(500).json({ 
+    message: "Failed to create user",
+    details: errorDetails
+  });
+}
+```
+
+### 2. Add Database Health Check Endpoint
+
+```typescript
+app.get("/api/health", async (req, res) => {
+  try {
+    await pool.query('SELECT 1');
+    res.json({ status: 'ok', database: 'connected' });
+  } catch (error) {
+    res.status(500).json({ status: 'error', database: 'disconnected' });
+  }
+});
+```
+
+### 3. Implement Retry Logic
+
+```typescript
+async function createUserWithRetry(userData, maxRetries = 3) {
+  for (let i = 0; i < maxRetries; i++) {
+    try {
+      return await storage.createUser(userData);
+    } catch (error) {
+      if (i === maxRetries - 1) throw error;
+      await new Promise(resolve => setTimeout(resolve, 1000 * (i + 1)));
+    }
+  }
+}
+```
+
+---
+
+## IMMEDIATE ACTION STEPS
+
+1. **Check server logs** - Look for the actual error in console
+2. **Verify DATABASE_URL** - Make sure database is provisioned
+3. **Test database connection** - Run health check
+4. **Check if tables exist** - Run migrations if needed
+5. **Verify authentication** - Ensure you're logged in as ADMIN
+6. **Test with curl** - Isolate if it's frontend or backend issue
+
+---
+
+## CURL TEST COMMAND
+
+```bash
+# Replace TOKEN and REGION_ID with actual values
+curl -X POST http://localhost:5000/api/users \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer YOUR_JWT_TOKEN" \
+  -d '{
+    "email": "test@example.com",
+    "password": "testpassword123",
+    "name": "Test User",
+    "role": "USER",
+    "regionId": "YOUR_REGION_ID"
+  }'
+```
+
+---
+
+## NEED MORE HELP?
+
+Run this comprehensive diagnostic and share the output:
+
+```bash
+# Save as diagnose.sh
+echo "=== ENVIRONMENT VARIABLES ==="
+env | grep -E 'DATABASE_URL|SESSION_SECRET|NODE_ENV' || echo "No matching env vars"
+
+echo "\n=== DATABASE CONNECTION ==="
+node -e "const p=require('pg').Pool;const pool=new p({connectionString:process.env.DATABASE_URL});pool.query('SELECT NOW()',(e,r)=>{if(e)console.log('Error:',e.message);else console.log('Connected:',r.rows[0]);pool.end();})" 2>&1
+
+echo "\n=== TABLE CHECK ==="
+node -e "const p=require('pg').Pool;const pool=new p({connectionString:process.env.DATABASE_URL});pool.query('SELECT table_name FROM information_schema.tables WHERE table_schema=\\'public\\' ORDER BY table_name',(e,r)=>{if(e)console.log('Error:',e.message);else console.log('Tables:',r.rows.map(x=>x.table_name).join(', '));pool.end();})" 2>&1
+
+echo "\n=== PACKAGE VERSIONS ==="
+npm list bcryptjs drizzle-orm express jsonwebtoken 2>/dev/null | grep -E '@|bcryptjs|drizzle|express|jsonwebtoken'
+
+echo "\n=== SERVER STATUS ==="
+curl -s http://localhost:5000/api/health 2>&1 || echo "Server not responding"
+```
+
+Save the output and share it for further debugging.

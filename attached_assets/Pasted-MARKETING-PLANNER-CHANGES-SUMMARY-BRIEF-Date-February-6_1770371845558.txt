@@ -1,0 +1,48 @@
+MARKETING PLANNER - CHANGES SUMMARY (BRIEF)
+Date: February 6, 2026
+NEW FEATURES:
+
+Added COPYWRITER role with separate workflow (copy → design → publish)
+Post collaboration system (dropdown to select collaboration profiles)
+Post tagging system (dropdown to create/select tags, filter by tags)
+Platform-wide country/brand filtering on all pages
+Auto-add uploaded graphics to brand asset library
+Canva OAuth integration with auto-sync (click asset → edit in Canva)
+Social media post previews (Instagram, Facebook, TikTok, LinkedIn, Twitter with real frames)
+Post performance tracking (followers, views, likes, clicks, reposts, remarks, post URL field)
+Best performing posts dashboard widget (top 10 ranked by engagement)
+Sent posts archive page (all published content with filters, direct links to posts)
+Regional defaults (users see their region first, can access all)
+
+DATABASE:
+
+Added 6 new tables: collaboration_profiles, post_collaborations, content_tags, post_tags, canva_integrations, post_performance
+Modified 5 tables: users, social_posts, email_campaigns, asset_library, brands
+Updated brand list to 8 brands (Baby Central, Beaba, Bloom Connect, Bloom Create, Bubble, Ergobaby, Micro, Skip Hop)
+Brands now support multiple regions via brand_regions junction table
+
+NAVIGATION:
+
+Added individual brand pages (/brands/:brandId) with dedicated calendars
+Added sent posts page (/sent)
+Sidebar now shows all brands as direct navigation links
+
+INTEGRATIONS:
+
+Canva API (OAuth flow, asset sync, edit-in-Canva links)
+Enhanced Slack notifications (copywriter assignments, copy ready alerts)
+
+API ENDPOINTS:
+
+15+ new endpoints for copywriter workflow, collaboration, tags, Canva sync, performance tracking, sent content
+
+UI COMPONENTS:
+
+15+ new components including preview frames, performance forms, filter bars, collaboration/tag selectors
+
+WORKFLOW:
+
+Old: DRAFT → GRAPHICS → APPROVAL → PUBLISHED
+New: DRAFT → COPY → GRAPHICS → APPROVAL → SCHEDULED → PUBLISHED (3 separate roles)
+
+Total Impact: 11 features, 6 new tables, 15+ API endpoints, 15+ components, ~8000+ lines of code

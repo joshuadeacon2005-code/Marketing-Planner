@@ -1,0 +1,334 @@
+<!DOCTYPE html>
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Strategic Marketing Control Center</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,typography,container-queries"></script>
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&amp;family=Inter:wght@300;400;500;600&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script>
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            colors: {
+              primary: "#f97316",
+              accent: "#0ea5e9",
+              surface: "#0f172a",
+              panel: "#1e293b",
+            },
+            fontFamily: {
+              sans: ["Inter", "sans-serif"],
+              display: ["Space+Grotesk", "sans-serif"],
+            },
+          },
+        },
+      };
+    </script>
+<style type="text/tailwindcss">
+        @layer base {
+            body { @apply bg-surface text-slate-100 overflow-hidden; }
+        }
+        .control-panel { @apply bg-panel/40 backdrop-blur-md border border-white/5 rounded-2xl transition-all duration-300; }
+        .control-panel:hover { @apply border-primary/30 bg-panel/60; }
+        .mini-chart-bar { @apply bg-primary/20 hover:bg-primary transition-all duration-500 rounded-t-sm; }
+        .gantt-row { @apply relative h-12 border-b border-white/5 hover:bg-white/5 transition-colors; }
+        .gantt-bar { @apply absolute h-8 rounded-lg flex items-center px-3 text-[10px] font-bold uppercase tracking-wider cursor-move select-none; }
+        .custom-scrollbar::-webkit-scrollbar { width: 4px; height: 4px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #334155; border-radius: 10px; }
+        .metric-card-hover .trend-chart { opacity: 0; transform: translateY(10px); transition: all 0.3s ease; }
+        .metric-card-hover:hover .trend-chart { opacity: 1; transform: translateY(0); }
+    </style>
+</head>
+<body class="h-screen flex flex-col font-sans">
+<header class="h-14 bg-surface/80 backdrop-blur-xl border-b border-white/10 flex items-center justify-between px-6 z-50">
+<div class="flex items-center space-x-8">
+<div class="flex items-center space-x-3">
+<div class="w-8 h-8 bg-gradient-to-br from-primary to-orange-600 rounded-lg flex items-center justify-center shadow-lg shadow-primary/20">
+<span class="material-symbols-outlined text-white text-xl">rocket_launch</span>
+</div>
+<span class="font-display font-bold text-lg tracking-tight">STRAT_CTRL <span class="text-primary">v2.0</span></span>
+</div>
+<nav class="hidden lg:flex items-center space-x-1">
+<button class="px-4 py-1.5 rounded-full bg-white/10 text-white text-sm font-medium flex items-center space-x-2">
+<span class="material-symbols-outlined text-sm">dashboard</span>
+<span>Overview</span>
+</button>
+<button class="px-4 py-1.5 rounded-full text-slate-400 hover:text-white hover:bg-white/5 text-sm font-medium flex items-center space-x-2 transition-all">
+<span class="material-symbols-outlined text-sm">hub</span>
+<span>Campaigns</span>
+</button>
+<button class="px-4 py-1.5 rounded-full text-slate-400 hover:text-white hover:bg-white/5 text-sm font-medium flex items-center space-x-2 transition-all">
+<span class="material-symbols-outlined text-sm">analytics</span>
+<span>Intelligence</span>
+</button>
+<button class="px-4 py-1.5 rounded-full text-slate-400 hover:text-white hover:bg-white/5 text-sm font-medium flex items-center space-x-2 transition-all">
+<span class="material-symbols-outlined text-sm">group</span>
+<span>Resources</span>
+</button>
+</nav>
+</div>
+<div class="flex items-center space-x-6">
+<div class="flex items-center bg-panel border border-white/10 rounded-full px-4 py-1.5 space-x-3">
+<span class="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Active Region:</span>
+<select class="bg-transparent border-none text-xs font-bold text-primary focus:ring-0 p-0 cursor-pointer uppercase tracking-tight">
+<option>Global Operations</option>
+<option>North America</option>
+<option>EMEA Market</option>
+<option>Asia Pacific</option>
+</select>
+</div>
+<div class="flex items-center space-x-3 border-l border-white/10 pl-6">
+<button class="w-8 h-8 rounded-full flex items-center justify-center text-slate-400 hover:text-white hover:bg-white/5">
+<span class="material-symbols-outlined">search</span>
+</button>
+<button class="w-8 h-8 rounded-full flex items-center justify-center text-slate-400 hover:text-white hover:bg-white/5 relative">
+<span class="material-symbols-outlined">notifications</span>
+<span class="absolute top-1.5 right-1.5 w-2 h-2 bg-primary rounded-full ring-2 ring-surface"></span>
+</button>
+<div class="w-8 h-8 rounded-full bg-gradient-to-tr from-slate-700 to-slate-600 border border-white/20 flex items-center justify-center cursor-pointer">
+<span class="text-xs font-bold">SA</span>
+</div>
+</div>
+</div>
+</header>
+<main class="flex-1 flex flex-col p-6 space-y-6 overflow-hidden">
+<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 shrink-0">
+<div class="control-panel p-5 relative overflow-hidden group metric-card-hover">
+<div class="flex justify-between items-start mb-2">
+<span class="text-[11px] font-bold text-slate-500 uppercase tracking-widest">Global Reach</span>
+<span class="material-symbols-outlined text-primary text-xl">public</span>
+</div>
+<div class="flex items-baseline space-x-3">
+<span class="text-3xl font-display font-bold">4.2M</span>
+<span class="text-xs text-emerald-400 font-bold flex items-center">
+<span class="material-symbols-outlined text-sm">trending_up</span> 14%
+                    </span>
+</div>
+<div class="trend-chart absolute bottom-0 left-0 right-0 px-4 flex items-end justify-between h-12">
+<div class="mini-chart-bar w-1.5 h-[40%]"></div>
+<div class="mini-chart-bar w-1.5 h-[60%]"></div>
+<div class="mini-chart-bar w-1.5 h-[35%]"></div>
+<div class="mini-chart-bar w-1.5 h-[80%]"></div>
+<div class="mini-chart-bar w-1.5 h-[50%]"></div>
+<div class="mini-chart-bar w-1.5 h-[90%]"></div>
+<div class="mini-chart-bar w-1.5 h-[45%]"></div>
+<div class="mini-chart-bar w-1.5 h-[70%]"></div>
+</div>
+</div>
+<div class="control-panel p-5 relative overflow-hidden group metric-card-hover">
+<div class="flex justify-between items-start mb-2">
+<span class="text-[11px] font-bold text-slate-500 uppercase tracking-widest">Conversion Rate</span>
+<span class="material-symbols-outlined text-accent text-xl">ads_click</span>
+</div>
+<div class="flex items-baseline space-x-3">
+<span class="text-3xl font-display font-bold">3.82%</span>
+<span class="text-xs text-emerald-400 font-bold flex items-center">
+<span class="material-symbols-outlined text-sm">trending_up</span> 0.5%
+                    </span>
+</div>
+<div class="trend-chart absolute bottom-0 left-0 right-0 px-4 flex items-end justify-between h-12">
+<div class="mini-chart-bar !bg-accent/20 hover:!bg-accent w-1.5 h-[20%]"></div>
+<div class="mini-chart-bar !bg-accent/20 hover:!bg-accent w-1.5 h-[40%]"></div>
+<div class="mini-chart-bar !bg-accent/20 hover:!bg-accent w-1.5 h-[75%]"></div>
+<div class="mini-chart-bar !bg-accent/20 hover:!bg-accent w-1.5 h-[55%]"></div>
+<div class="mini-chart-bar !bg-accent/20 hover:!bg-accent w-1.5 h-[35%]"></div>
+<div class="mini-chart-bar !bg-accent/20 hover:!bg-accent w-1.5 h-[85%]"></div>
+<div class="mini-chart-bar !bg-accent/20 hover:!bg-accent w-1.5 h-[65%]"></div>
+<div class="mini-chart-bar !bg-accent/20 hover:!bg-accent w-1.5 h-[95%]"></div>
+</div>
+</div>
+<div class="control-panel p-5 relative overflow-hidden group metric-card-hover">
+<div class="flex justify-between items-start mb-2">
+<span class="text-[11px] font-bold text-slate-500 uppercase tracking-widest">Active Budget</span>
+<span class="material-symbols-outlined text-yellow-500 text-xl">payments</span>
+</div>
+<div class="flex items-baseline space-x-3">
+<span class="text-3xl font-display font-bold">$128k</span>
+<span class="text-xs text-slate-400 font-bold">Burn: 82%</span>
+</div>
+<div class="trend-chart absolute bottom-0 left-0 right-0 px-4 flex items-end justify-between h-12">
+<div class="mini-chart-bar !bg-yellow-500/20 hover:!bg-yellow-500 w-1.5 h-[10%]"></div>
+<div class="mini-chart-bar !bg-yellow-500/20 hover:!bg-yellow-500 w-1.5 h-[20%]"></div>
+<div class="mini-chart-bar !bg-yellow-500/20 hover:!bg-yellow-500 w-1.5 h-[30%]"></div>
+<div class="mini-chart-bar !bg-yellow-500/20 hover:!bg-yellow-500 w-1.5 h-[45%]"></div>
+<div class="mini-chart-bar !bg-yellow-500/20 hover:!bg-yellow-500 w-1.5 h-[60%]"></div>
+<div class="mini-chart-bar !bg-yellow-500/20 hover:!bg-yellow-500 w-1.5 h-[75%]"></div>
+<div class="mini-chart-bar !bg-yellow-500/20 hover:!bg-yellow-500 w-1.5 h-[82%]"></div>
+<div class="mini-chart-bar !bg-yellow-500/20 hover:!bg-yellow-500 w-1.5 h-[85%]"></div>
+</div>
+</div>
+<div class="control-panel p-5 relative overflow-hidden group metric-card-hover">
+<div class="flex justify-between items-start mb-2">
+<span class="text-[11px] font-bold text-slate-500 uppercase tracking-widest">Team Efficiency</span>
+<span class="material-symbols-outlined text-purple-500 text-xl">speed</span>
+</div>
+<div class="flex items-baseline space-x-3">
+<span class="text-3xl font-display font-bold">92%</span>
+<span class="text-xs text-emerald-400 font-bold flex items-center">
+<span class="material-symbols-outlined text-sm">trending_up</span> 4%
+                    </span>
+</div>
+<div class="trend-chart absolute bottom-0 left-0 right-0 px-4 flex items-end justify-between h-12">
+<div class="mini-chart-bar !bg-purple-500/20 hover:!bg-purple-500 w-1.5 h-[60%]"></div>
+<div class="mini-chart-bar !bg-purple-500/20 hover:!bg-purple-500 w-1.5 h-[65%]"></div>
+<div class="mini-chart-bar !bg-purple-500/20 hover:!bg-purple-500 w-1.5 h-[70%]"></div>
+<div class="mini-chart-bar !bg-purple-500/20 hover:!bg-purple-500 w-1.5 h-[80%]"></div>
+<div class="mini-chart-bar !bg-purple-500/20 hover:!bg-purple-500 w-1.5 h-[85%]"></div>
+<div class="mini-chart-bar !bg-purple-500/20 hover:!bg-purple-500 w-1.5 h-[90%]"></div>
+<div class="mini-chart-bar !bg-purple-500/20 hover:!bg-purple-500 w-1.5 h-[92%]"></div>
+<div class="mini-chart-bar !bg-purple-500/20 hover:!bg-purple-500 w-1.5 h-[94%]"></div>
+</div>
+</div>
+</div>
+<section class="flex-1 min-h-0 flex flex-col control-panel overflow-hidden">
+<div class="p-4 border-b border-white/5 flex items-center justify-between">
+<div class="flex items-center space-x-4">
+<h3 class="font-display font-bold text-lg">Campaign Lifecycle</h3>
+<div class="flex items-center space-x-2 bg-surface rounded-lg p-1">
+<button class="px-3 py-1 text-[10px] font-bold rounded-md bg-panel border border-white/10">WEEKLY</button>
+<button class="px-3 py-1 text-[10px] font-bold text-slate-500 hover:text-white transition-colors">MONTHLY</button>
+<button class="px-3 py-1 text-[10px] font-bold text-slate-500 hover:text-white transition-colors">QUARTERLY</button>
+</div>
+</div>
+<div class="flex items-center space-x-4">
+<div class="flex -space-x-2">
+<div class="w-8 h-8 rounded-full border-2 border-panel bg-slate-700 flex items-center justify-center text-[10px] font-bold">JD</div>
+<div class="w-8 h-8 rounded-full border-2 border-panel bg-primary flex items-center justify-center text-[10px] font-bold text-white">MK</div>
+<div class="w-8 h-8 rounded-full border-2 border-panel bg-slate-600 flex items-center justify-center text-[10px] font-bold">AL</div>
+</div>
+<button class="bg-primary hover:bg-orange-600 text-white px-4 py-1.5 rounded-lg text-xs font-bold transition-all shadow-lg shadow-primary/20 flex items-center space-x-2">
+<span class="material-symbols-outlined text-sm">add</span>
+<span>Create Campaign</span>
+</button>
+</div>
+</div>
+<div class="flex-1 overflow-x-auto custom-scrollbar relative">
+<div class="sticky top-0 z-20 bg-panel/90 flex border-b border-white/5">
+<div class="w-64 flex-shrink-0 p-4 font-bold text-[10px] text-slate-500 uppercase tracking-widest bg-panel/50 backdrop-blur-md">Campaign Initiative</div>
+<div class="flex flex-1">
+<div class="flex-1 min-w-[100px] p-4 text-center text-[10px] font-bold text-slate-400 border-l border-white/5">NOV 20</div>
+<div class="flex-1 min-w-[100px] p-4 text-center text-[10px] font-bold text-slate-400 border-l border-white/5">NOV 21</div>
+<div class="flex-1 min-w-[100px] p-4 text-center text-[10px] font-bold text-slate-400 border-l border-white/5">NOV 22</div>
+<div class="flex-1 min-w-[100px] p-4 text-center text-[10px] font-bold text-slate-400 border-l border-white/5">NOV 23</div>
+<div class="flex-1 min-w-[100px] p-4 text-center text-[10px] font-bold text-primary border-l border-white/5 bg-primary/5">NOV 24 (TODAY)</div>
+<div class="flex-1 min-w-[100px] p-4 text-center text-[10px] font-bold text-slate-400 border-l border-white/5">NOV 25</div>
+<div class="flex-1 min-w-[100px] p-4 text-center text-[10px] font-bold text-slate-400 border-l border-white/5">NOV 26</div>
+<div class="flex-1 min-w-[100px] p-4 text-center text-[10px] font-bold text-slate-400 border-l border-white/5">NOV 27</div>
+</div>
+</div>
+<div class="flex flex-col min-h-full">
+<div class="gantt-row flex">
+<div class="w-64 flex-shrink-0 px-4 flex items-center font-bold text-xs text-slate-300">Winter Product Launch</div>
+<div class="flex-1 flex relative">
+<div class="gantt-bar bg-primary text-white left-[12.5%] w-[37.5%] top-2 shadow-lg shadow-primary/20">
+<span>Phase 1: Creative</span>
+</div>
+</div>
+</div>
+<div class="gantt-row flex">
+<div class="w-64 flex-shrink-0 px-4 flex items-center font-bold text-xs text-slate-300">B2B Networking Seminars</div>
+<div class="flex-1 flex relative">
+<div class="gantt-bar bg-accent text-white left-[37.5%] w-[50%] top-2 shadow-lg shadow-accent/20">
+<span>Phase 2: Lead Gen</span>
+</div>
+<div class="absolute left-[37.5%] top-0 h-2 w-0.5 bg-slate-500"></div>
+</div>
+</div>
+<div class="gantt-row flex">
+<div class="w-64 flex-shrink-0 px-4 flex items-center font-bold text-xs text-slate-300">Global Brand Refresh</div>
+<div class="flex-1 flex relative">
+<div class="gantt-bar bg-purple-500 text-white left-[0%] w-[87.5%] top-2 shadow-lg shadow-purple-500/20">
+<span>Strategic Overhaul</span>
+</div>
+</div>
+</div>
+<div class="gantt-row flex">
+<div class="w-64 flex-shrink-0 px-4 flex items-center font-bold text-xs text-slate-300">Holiday Social Blitz</div>
+<div class="flex-1 flex relative">
+<div class="gantt-bar bg-emerald-500 text-white left-[62.5%] w-[25%] top-2 shadow-lg shadow-emerald-500/20">
+<span>Execution</span>
+</div>
+</div>
+</div>
+<div class="gantt-row flex"><div class="w-64"></div><div class="flex-1"></div></div>
+<div class="gantt-row flex"><div class="w-64"></div><div class="flex-1"></div></div>
+</div>
+</div>
+</section>
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-6 h-[240px]">
+<div class="control-panel flex flex-col">
+<div class="p-4 border-b border-white/5 flex justify-between items-center">
+<h4 class="text-xs font-bold uppercase tracking-widest text-slate-500">Priority Dispatch</h4>
+<span class="material-symbols-outlined text-sm text-slate-400">more_horiz</span>
+</div>
+<div class="flex-1 p-4 space-y-3 overflow-y-auto custom-scrollbar">
+<div class="flex items-center space-x-3 p-2 rounded-lg bg-white/5 border border-white/5 hover:border-primary/50 cursor-pointer group">
+<div class="w-2 h-2 rounded-full bg-primary animate-pulse"></div>
+<div class="flex-1">
+<p class="text-xs font-bold group-hover:text-primary transition-colors">Approve Ad Sequence</p>
+<p class="text-[10px] text-slate-500">Due in 2h • APAC</p>
+</div>
+</div>
+<div class="flex items-center space-x-3 p-2 rounded-lg bg-white/5 border border-white/5 hover:border-primary/50 cursor-pointer group">
+<div class="w-2 h-2 rounded-full bg-slate-600"></div>
+<div class="flex-1">
+<p class="text-xs font-bold group-hover:text-primary transition-colors">Quarterly Review</p>
+<p class="text-[10px] text-slate-500">Friday • Global</p>
+</div>
+</div>
+</div>
+</div>
+<div class="lg:col-span-2 control-panel flex flex-col">
+<div class="p-4 border-b border-white/5 flex justify-between items-center">
+<h4 class="text-xs font-bold uppercase tracking-widest text-slate-500">Market Intelligence Feed</h4>
+<div class="flex items-center space-x-4">
+<div class="flex items-center space-x-1">
+<div class="w-2 h-2 rounded-full bg-emerald-500"></div>
+<span class="text-[10px] text-slate-400">Live</span>
+</div>
+</div>
+</div>
+<div class="flex-1 p-4 flex space-x-6 overflow-x-auto custom-scrollbar">
+<div class="flex-shrink-0 w-48 flex flex-col justify-between">
+<p class="text-[10px] text-slate-500 font-bold uppercase">Competitor Activity</p>
+<div class="bg-surface rounded-lg p-3 border border-white/5">
+<p class="text-xs font-medium text-slate-300">Rival "X" launched 20% discount campaign in EMEA.</p>
+</div>
+</div>
+<div class="flex-shrink-0 w-48 flex flex-col justify-between">
+<p class="text-[10px] text-slate-500 font-bold uppercase">Social Sentiment</p>
+<div class="flex items-center space-x-2">
+<span class="text-2xl font-display font-bold text-emerald-400">+82</span>
+<span class="material-symbols-outlined text-emerald-400">sentiment_very_satisfied</span>
+</div>
+</div>
+<div class="flex-shrink-0 w-48 flex flex-col justify-between">
+<p class="text-[10px] text-slate-500 font-bold uppercase">System Status</p>
+<div class="h-2 w-full bg-white/5 rounded-full overflow-hidden">
+<div class="h-full bg-primary w-[98%]"></div>
+</div>
+<p class="text-[10px] text-emerald-500">All marketing stacks operational</p>
+</div>
+</div>
+</div>
+</div>
+</main>
+<footer class="h-8 bg-surface border-t border-white/5 flex items-center justify-between px-6">
+<div class="flex items-center space-x-4">
+<div class="flex items-center space-x-1.5">
+<span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+<span class="text-[9px] font-bold text-slate-500 uppercase tracking-tighter">Secure Link Established</span>
+</div>
+<span class="text-[9px] font-bold text-slate-600 uppercase tracking-tighter">Latency: 12ms</span>
+</div>
+<div class="flex items-center space-x-4">
+<span class="text-[9px] font-bold text-slate-500 uppercase tracking-tighter">Terminal ID: XC-922-A</span>
+<span class="text-[9px] font-bold text-slate-500 uppercase tracking-tighter">24 NOV 2023 | 09:42 EST</span>
+</div>
+</footer>
+
+</body></html>

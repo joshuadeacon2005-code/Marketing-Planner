@@ -1,0 +1,54 @@
+✅ Team-Based User Acceptance Test for The Happy Hangout
+👥 Team-Based Action Tasks
+Each team must complete the tasks below based on your function.
+Marketing Team - Growth Funnel Testing
+Task 1: Customer Registration Journey
+Locate customer account sign-up https://thehappyhangout.com/join 
+Register as a new customer
+Check what happens after sign-up and if you receive an official email for coming onboard (yes received the email)
+Questions:
+Is registration worth it? I think it would be great to include some small freebie item for people who register
+Is the next step obvious? yes
+
+Task 2: Event Registration Flow
+Find an upcoming event page https://thehappyhangout.com/upcoming-events 
+Attempt to register for an event (im not able to see upcoming events in SG region, so unable to test this)
+
+
+
+Confirm the journey feels smooth 
+Check for:
+Clear event details (date/time/location) 
+Strong CTA to register
+Confirmation after submission
+
+
+Task 3: Ask the Expert Series
+Locate the Ask the Expert section https://thehappyhangout.com/expert-info 
+Evaluate if the content is engaging 
+Check if users can submit questions or sign up
+Marketing Questions:
+Is this discoverable enough? Yes
+Would users return for more? Yes if If there’s more attractive services provided, i think lactation consultations, postpartum, child psychologist will be attractive or will have to find out what are the common issues SG parents face the most
+Feedbacks: 
+https://thehappyhangout.com/expert-info  leads to ‘book a consultation’ instead of ‘ask an expert’. Not sure if its correct? As this task is based on ask the expert series 
+Maybe we can write about common issues that most parents face under each topic so they will be interested, something like 
+Question type; Is your child facing these issues?
+Are you stressed about xx?
+Is your baby having a hard time sleeping?
+
+
+
+Page overall feedbacks:
+1. 
+Logo got cut off <
+logos seems out of placement
+
+
+2.  I see this event on the website before signing up/loging in
+
+I think it will be great to include some visuals in the website especially for events/experts/consultation 
+For the registration part, I suggest adding another option for those who purchased the baby carrier but haven't given birth yet, if they want to register to join this community? Cause i saw that its a must to fill in children’s birth date to register. Or are we only letting those who have already given birth to register happy hangouts. 
+Where can they reach out to us if they have any enquiries regarding the community? Or they will be reaching out to us on WA community
+Are they able to redeem anything with their reward points? I saw that they can earn some points for referral  
+Clear steps on how to use the redeemed vouchers that we claimed?

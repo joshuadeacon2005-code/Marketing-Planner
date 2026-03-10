@@ -1,0 +1,1551 @@
+# MARKETING PLANNER - NEW FEATURES IMPLEMENTATION PROMPT
+
+## Overview
+Add advanced features to the B2B Marketing Planner including brand pages, unified calendar, recurring content, approval workflows, and external integrations.
+
+---
+
+## FEATURE 1: BRAND PAGE ENHANCEMENTS
+
+### 1.1 External Asset Management Links
+
+**Location:** Brand page in Assets section
+
+**Requirements:**
+- Add two prominent buttons on each brand's asset page
+- Button 1: "Open in DreamPIM" → Links to brand's DreamPIM page
+- Button 2: "Brand Asset Portal" → Links to brand's own asset management platform
+- Store these URLs in the database per brand
+
+**Database Schema Changes:**
+```typescript
+// In shared/schema.ts - Update brands table
+export const brands = pgTable("brands", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  name: text("name").notNull().unique(),
+  color: text("color").notNull().default("#F7971C"),
+  isActive: boolean("is_active").notNull().default(true),
+  
+  // NEW FIELDS
+  dreamPimUrl: text("dream_pim_url"),
+  assetPortalUrl: text("asset_portal_url"),
+  assetPortalName: text("asset_portal_name").default("Asset Portal"),
+});
+```
+
+**UI Implementation:**
+```typescript
+// In client/src/pages/assets.tsx - Add to brand asset view
+<div className="flex gap-3 mb-6">
+  {brand.dreamPimUrl && (
+    <Button 
+      variant="outline" 
+      className="flex items-center gap-2"
+      onClick={() => window.open(brand.dreamPimUrl, '_blank')}
+    >
+      <ExternalLink className="h-4 w-4" />
+      Open in DreamPIM
+    </Button>
+  )}
+  
+  {brand.assetPortalUrl && (
+    <Button 
+      variant="outline" 
+      className="flex items-center gap-2"
+      onClick={() => window.open(brand.assetPortalUrl, '_blank')}
+    >
+      <ExternalLink className="h-4 w-4" />
+      {brand.assetPortalName}
+    </Button>
+  )}
+</div>
+```
+
+**Admin Settings UI:**
+```typescript
+// Add to brand edit form in settings
+<FormField label="DreamPIM URL">
+  <Input 
+    type="url"
+    placeholder="https://dreampim.com/brands/..."
+    value={formData.dreamPimUrl}
+    onChange={(e) => setFormData({...formData, dreamPimUrl: e.target.value})}
+  />
+</FormField>
+
+<FormField label="Asset Portal URL">
+  <Input 
+    type="url"
+    placeholder="https://assets.brandname.com"
+    value={formData.assetPortalUrl}
+    onChange={(e) => setFormData({...formData, assetPortalUrl: e.target.value})}
+  />
+</FormField>
+
+<FormField label="Asset Portal Name">
+  <Input 
+    placeholder="Brand Asset Portal"
+    value={formData.assetPortalName}
+    onChange={(e) => setFormData({...formData, assetPortalName: e.target.value})}
+  />
+</FormField>
+```
+
+---
+
+## FEATURE 2: BRAND OVERVIEW PAGES
+
+### 2.1 Create New Brand Detail View
+
+**New Route:** `/brands/:brandId`
+
+**Page Components:**
+1. **Header** - Brand name, color indicator, action buttons
+2. **Calendar View** - Shows brand-specific schedule
+3. **Active Promotions Card** - Current discounts/promotions
+4. **Upcoming Events Card** - Events featuring this brand
+5. **Recent Activity** - Posts, emails, tasks
+
+**Database Schema Changes:**
+```typescript
+// In shared/schema.ts - Add promotions table
+export const promotions = pgTable("promotions", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  brandId: varchar("brand_id").notNull().references(() => brands.id, { onDelete: "cascade" }),
+  name: text("name").notNull(),
+  description: text("description"),
+  discountType: text("discount_type").notNull(), // "PERCENTAGE" | "FIXED_AMOUNT" | "BOGO" | "OTHER"
+  discountValue: text("discount_value"),
+  startDate: timestamp("start_date").notNull(),
+  endDate: timestamp("end_date").notNull(),
+  status: text("status").notNull().default("ACTIVE"), // "ACTIVE" | "SCHEDULED" | "ENDED"
+  regions: text("regions").array(), // Array of region IDs
+  createdById: varchar("created_by_id").notNull().references(() => users.id),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
+// Link social posts to promotions
+export const socialPosts = pgTable("social_posts", {
+  // ... existing fields ...
+  promotionId: varchar("promotion_id").references(() => promotions.id, { onDelete: "set null" }),
+});
+
+// Link email campaigns to promotions
+export const emailCampaigns = pgTable("email_campaigns", {
+  // ... existing fields ...
+  promotionId: varchar("promotion_id").references(() => promotions.id, { onDelete: "set null" }),
+});
+
+// Validation schemas
+export const insertPromotionSchema = createInsertSchema(promotions);
+export const selectPromotionSchema = createSelectSchema(promotions);
+export type Promotion = z.infer<typeof selectPromotionSchema>;
+export type InsertPromotion = z.infer<typeof insertPromotionSchema>;
+```
+
+**Brand Page Implementation:**
+```typescript
+// client/src/pages/brand-detail.tsx
+import { useParams } from "wouter";
+import { useQuery } from "@tanstack/react-query";
+import { Calendar } from "@/components/ui/calendar";
+import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+
+export default function BrandDetailPage() {
+  const { brandId } = useParams();
+  
+  const { data: brand } = useQuery({
+    queryKey: ["/api/brands", brandId],
+    queryFn: () => fetch(`/api/brands/${brandId}`).then(r => r.json()),
+  });
+  
+  const { data: promotions } = useQuery({
+    queryKey: ["/api/promotions", { brandId }],
+    queryFn: () => fetch(`/api/promotions?brandId=${brandId}`).then(r => r.json()),
+  });
+  
+  const { data: events } = useQuery({
+    queryKey: ["/api/events", { brandId }],
+    queryFn: () => fetch(`/api/events?brandId=${brandId}`).then(r => r.json()),
+  });
+  
+  const { data: socialPosts } = useQuery({
+    queryKey: ["/api/social", { brandId }],
+    queryFn: () => fetch(`/api/social?brandId=${brandId}`).then(r => r.json()),
+  });
+  
+  const activePromotions = promotions?.filter(p => p.status === "ACTIVE") || [];
+  
+  return (
+    <div className="p-6">
+      {/* Brand Header */}
+      <div className="flex items-center gap-4 mb-6">
+        <div 
+          className="w-12 h-12 rounded-lg" 
+          style={{ backgroundColor: brand?.color }}
+        />
+        <div>
+          <h1 className="text-3xl font-bold">{brand?.name}</h1>
+          <p className="text-muted-foreground">Brand Overview & Calendar</p>
+        </div>
+      </div>
+      
+      {/* Active Promotions */}
+      <Card className="mb-6">
+        <CardHeader>
+          <CardTitle className="flex items-center justify-between">
+            Active Promotions & Discounts
+            <Button size="sm" onClick={() => openPromotionDialog()}>
+              <Plus className="h-4 w-4 mr-2" />
+              Add Promotion
+            </Button>
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          {activePromotions.length === 0 ? (
+            <p className="text-muted-foreground">No active promotions</p>
+          ) : (
+            <div className="space-y-3">
+              {activePromotions.map((promo) => (
+                <div key={promo.id} className="flex items-center justify-between p-3 border rounded-lg">
+                  <div>
+                    <h4 className="font-semibold">{promo.name}</h4>
+                    <p className="text-sm text-muted-foreground">{promo.description}</p>
+                    <div className="flex items-center gap-2 mt-2">
+                      <Badge variant="outline">{promo.discountType}</Badge>
+                      <span className="text-sm">
+                        {formatDate(promo.startDate)} - {formatDate(promo.endDate)}
+                      </span>
+                    </div>
+                  </div>
+                  <Button variant="ghost" size="sm">
+                    View Content
+                  </Button>
+                </div>
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+      
+      {/* Calendar View */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Brand Calendar</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <BrandCalendar 
+            brandId={brandId}
+            events={events}
+            posts={socialPosts}
+            promotions={promotions}
+          />
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+```
+
+### 2.2 Promotion Management
+
+**API Routes:**
+```typescript
+// server/routes.ts - Add promotion routes
+app.get("/api/promotions", authenticateToken, async (req: any, res) => {
+  try {
+    const { brandId, status } = req.query;
+    const promotions = await storage.getPromotions({ brandId, status });
+    res.json(promotions);
+  } catch (error) {
+    console.error("Get promotions error:", error);
+    res.status(500).json({ message: "Internal server error" });
+  }
+});
+
+app.post("/api/promotions", authenticateToken, async (req: any, res) => {
+  try {
+    const data = insertPromotionSchema.parse(req.body);
+    const promotion = await storage.createPromotion({ 
+      ...data, 
+      createdById: req.user.userId 
+    });
+    res.status(201).json(promotion);
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      return res.status(400).json({ message: "Invalid input", errors: error.errors });
+    }
+    console.error("Create promotion error:", error);
+    res.status(500).json({ message: "Internal server error" });
+  }
+});
+
+app.put("/api/promotions/:id", authenticateToken, async (req: any, res) => {
+  try {
+    const promotion = await storage.updatePromotion(req.params.id, req.body);
+    if (!promotion) {
+      return res.status(404).json({ message: "Promotion not found" });
+    }
+    res.json(promotion);
+  } catch (error) {
+    console.error("Update promotion error:", error);
+    res.status(500).json({ message: "Internal server error" });
+  }
+});
+```
+
+**Assign Content to Promotions:**
+```typescript
+// In social post creation/edit form
+<FormField label="Link to Promotion (Optional)">
+  <Select 
+    value={formData.promotionId}
+    onValueChange={(value) => setFormData({...formData, promotionId: value})}
+  >
+    <SelectTrigger>
+      <SelectValue placeholder="Select promotion" />
+    </SelectTrigger>
+    <SelectContent>
+      <SelectItem value="">None</SelectItem>
+      {activePromotions.map((promo) => (
+        <SelectItem key={promo.id} value={promo.id}>
+          {promo.name} ({formatDate(promo.startDate)} - {formatDate(promo.endDate)})
+        </SelectItem>
+      ))}
+    </SelectContent>
+  </Select>
+</FormField>
+```
+
+---
+
+## FEATURE 3: UNIFIED CALENDAR ON DASHBOARD
+
+### 3.1 Central Calendar Component
+
+**Requirements:**
+- Single calendar showing ALL content types (posts, emails, events, tasks, promotions)
+- Color-coded by type and brand
+- Filterable by: brand, platform/channel, region, content type
+- Default view: entire company
+- Click on item to see details/edit
+
+**Database Changes:**
+```typescript
+// Add calendar preferences per user
+export const userPreferences = pgTable("user_preferences", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  calendarView: text("calendar_view").default("month"), // "day" | "week" | "month"
+  calendarFilters: text("calendar_filters").default("{}"), // JSON string
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+```
+
+**Calendar Implementation:**
+```typescript
+// client/src/components/unified-calendar.tsx
+import { Calendar, momentLocalizer } from 'react-big-calendar';
+import moment from 'moment';
+import 'react-big-calendar/lib/css/react-big-calendar.css';
+
+const localizer = momentLocalizer(moment);
+
+export function UnifiedCalendar() {
+  const [filters, setFilters] = useState({
+    brandIds: [],
+    platforms: [],
+    regionIds: [],
+    contentTypes: ['social', 'email', 'event', 'promotion', 'task'],
+  });
+  
+  const { data: brands } = useQuery({ queryKey: ["/api/brands"] });
+  const { data: regions } = useQuery({ queryKey: ["/api/regions"] });
+  
+  // Fetch all content
+  const { data: socialPosts } = useQuery({ 
+    queryKey: ["/api/social", filters],
+    enabled: filters.contentTypes.includes('social'),
+  });
+  
+  const { data: emailCampaigns } = useQuery({ 
+    queryKey: ["/api/email", filters],
+    enabled: filters.contentTypes.includes('email'),
+  });
+  
+  const { data: events } = useQuery({ 
+    queryKey: ["/api/events", filters],
+    enabled: filters.contentTypes.includes('event'),
+  });
+  
+  const { data: promotions } = useQuery({ 
+    queryKey: ["/api/promotions", filters],
+    enabled: filters.contentTypes.includes('promotion'),
+  });
+  
+  const { data: tasks } = useQuery({ 
+    queryKey: ["/api/tasks", filters],
+    enabled: filters.contentTypes.includes('task'),
+  });
+  
+  // Transform all data into calendar events
+  const calendarEvents = useMemo(() => {
+    const events = [];
+    
+    // Social posts
+    if (socialPosts) {
+      socialPosts
+        .filter(applyFilters(filters))
+        .forEach(post => {
+          const brand = brands?.find(b => b.id === post.brandId);
+          events.push({
+            id: `social-${post.id}`,
+            title: `${post.platform} Post`,
+            start: new Date(post.scheduledDate),
+            end: new Date(post.scheduledDate),
+            resource: { type: 'social', data: post, brand },
+            color: brand?.color || '#3b82f6',
+          });
+        });
+    }
+    
+    // Email campaigns
+    if (emailCampaigns) {
+      emailCampaigns
+        .filter(applyFilters(filters))
+        .forEach(email => {
+          const brand = brands?.find(b => b.id === email.brandId);
+          events.push({
+            id: `email-${email.id}`,
+            title: email.subject,
+            start: new Date(email.scheduledDate),
+            end: new Date(email.scheduledDate),
+            resource: { type: 'email', data: email, brand },
+            color: brand?.color || '#10b981',
+          });
+        });
+    }
+    
+    // Events
+    if (events) {
+      events
+        .filter(applyFilters(filters))
+        .forEach(event => {
+          events.push({
+            id: `event-${event.id}`,
+            title: event.name,
+            start: new Date(event.startDate),
+            end: new Date(event.endDate),
+            resource: { type: 'event', data: event },
+            color: '#8b5cf6',
+          });
+        });
+    }
+    
+    // Promotions
+    if (promotions) {
+      promotions
+        .filter(applyFilters(filters))
+        .forEach(promo => {
+          const brand = brands?.find(b => b.id === promo.brandId);
+          events.push({
+            id: `promo-${promo.id}`,
+            title: `🎉 ${promo.name}`,
+            start: new Date(promo.startDate),
+            end: new Date(promo.endDate),
+            resource: { type: 'promotion', data: promo, brand },
+            color: brand?.color || '#f59e0b',
+            allDay: true,
+          });
+        });
+    }
+    
+    // Tasks
+    if (tasks) {
+      tasks
+        .filter(applyFilters(filters))
+        .filter(t => t.dueDate)
+        .forEach(task => {
+          const brand = brands?.find(b => b.id === task.brandId);
+          events.push({
+            id: `task-${task.id}`,
+            title: `📋 ${task.title}`,
+            start: new Date(task.dueDate),
+            end: new Date(task.dueDate),
+            resource: { type: 'task', data: task, brand },
+            color: brand?.color || '#6b7280',
+          });
+        });
+    }
+    
+    return events;
+  }, [socialPosts, emailCampaigns, events, promotions, tasks, filters, brands]);
+  
+  const eventStyleGetter = (event) => {
+    return {
+      style: {
+        backgroundColor: event.color,
+        borderColor: event.color,
+        color: 'white',
+      }
+    };
+  };
+  
+  return (
+    <div>
+      {/* Filters */}
+      <Card className="mb-4">
+        <CardContent className="pt-6">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            {/* Brand Filter */}
+            <MultiSelect
+              label="Brands"
+              options={brands?.map(b => ({ label: b.name, value: b.id })) || []}
+              value={filters.brandIds}
+              onChange={(value) => setFilters({...filters, brandIds: value})}
+            />
+            
+            {/* Platform Filter */}
+            <MultiSelect
+              label="Platforms"
+              options={[
+                { label: 'Instagram', value: 'INSTAGRAM' },
+                { label: 'Facebook', value: 'FACEBOOK' },
+                { label: 'LinkedIn', value: 'LINKEDIN' },
+                { label: 'Twitter', value: 'TWITTER' },
+                { label: 'TikTok', value: 'TIKTOK' },
+                { label: 'Email', value: 'EMAIL' },
+              ]}
+              value={filters.platforms}
+              onChange={(value) => setFilters({...filters, platforms: value})}
+            />
+            
+            {/* Region Filter */}
+            <MultiSelect
+              label="Regions"
+              options={regions?.map(r => ({ label: r.name, value: r.id })) || []}
+              value={filters.regionIds}
+              onChange={(value) => setFilters({...filters, regionIds: value})}
+            />
+            
+            {/* Content Type Filter */}
+            <MultiSelect
+              label="Content Types"
+              options={[
+                { label: 'Social Posts', value: 'social' },
+                { label: 'Email Campaigns', value: 'email' },
+                { label: 'Events', value: 'event' },
+                { label: 'Promotions', value: 'promotion' },
+                { label: 'Tasks', value: 'task' },
+              ]}
+              value={filters.contentTypes}
+              onChange={(value) => setFilters({...filters, contentTypes: value})}
+            />
+          </div>
+          
+          <div className="flex justify-end mt-4">
+            <Button 
+              variant="ghost" 
+              size="sm"
+              onClick={() => setFilters({
+                brandIds: [],
+                platforms: [],
+                regionIds: [],
+                contentTypes: ['social', 'email', 'event', 'promotion', 'task'],
+              })}
+            >
+              Reset Filters
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+      
+      {/* Calendar */}
+      <Card>
+        <CardContent className="pt-6">
+          <Calendar
+            localizer={localizer}
+            events={calendarEvents}
+            startAccessor="start"
+            endAccessor="end"
+            style={{ height: 700 }}
+            eventPropGetter={eventStyleGetter}
+            onSelectEvent={(event) => handleEventClick(event)}
+            views={['month', 'week', 'day', 'agenda']}
+            defaultView="month"
+          />
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
+function applyFilters(filters) {
+  return (item) => {
+    // Brand filter
+    if (filters.brandIds.length > 0 && item.brandId) {
+      if (!filters.brandIds.includes(item.brandId)) return false;
+    }
+    
+    // Platform filter
+    if (filters.platforms.length > 0 && item.platform) {
+      if (!filters.platforms.includes(item.platform)) return false;
+    }
+    
+    // Region filter
+    if (filters.regionIds.length > 0 && item.regionId) {
+      if (!filters.regionIds.includes(item.regionId)) return false;
+    }
+    
+    return true;
+  };
+}
+```
+
+**Add to Dashboard:**
+```typescript
+// client/src/pages/dashboard.tsx
+import { UnifiedCalendar } from "@/components/unified-calendar";
+
+export default function Dashboard() {
+  return (
+    <div className="p-6">
+      <h1 className="text-3xl font-bold mb-6">Marketing Calendar</h1>
+      <UnifiedCalendar />
+    </div>
+  );
+}
+```
+
+---
+
+## FEATURE 4: RECURRING CONTENT
+
+### 4.1 Recurring Events & Weekly Emails
+
+**Database Schema Changes:**
+```typescript
+// Add recurrence pattern to relevant tables
+export const recurrencePattern = pgTable("recurrence_patterns", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  frequency: text("frequency").notNull(), // "DAILY" | "WEEKLY" | "MONTHLY" | "YEARLY"
+  interval: integer("interval").notNull().default(1), // Every X days/weeks/months
+  daysOfWeek: text("days_of_week").array(), // ["MONDAY", "WEDNESDAY"] for weekly
+  dayOfMonth: integer("day_of_month"), // 15 for monthly on 15th
+  endDate: timestamp("end_date"),
+  occurrences: integer("occurrences"), // Or end after N occurrences
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+// Link to social posts
+export const socialPosts = pgTable("social_posts", {
+  // ... existing fields ...
+  recurrencePatternId: varchar("recurrence_pattern_id").references(() => recurrencePatterns.id, { onDelete: "set null" }),
+  isRecurrenceParent: boolean("is_recurrence_parent").default(false),
+  recurrenceParentId: varchar("recurrence_parent_id").references(() => socialPosts.id, { onDelete: "set null" }),
+});
+
+// Link to email campaigns
+export const emailCampaigns = pgTable("email_campaigns", {
+  // ... existing fields ...
+  recurrencePatternId: varchar("recurrence_pattern_id").references(() => recurrencePatterns.id, { onDelete: "set null" }),
+  isRecurrenceParent: boolean("is_recurrence_parent").default(false),
+  recurrenceParentId: varchar("recurrence_parent_id").references(() => emailCampaigns.id, { onDelete: "set null" }),
+});
+
+// Link to events
+export const events = pgTable("events", {
+  // ... existing fields ...
+  recurrencePatternId: varchar("recurrence_pattern_id").references(() => recurrencePatterns.id, { onDelete: "set null" }),
+  isRecurrenceParent: boolean("is_recurrence_parent").default(false),
+  recurrenceParentId: varchar("recurrence_parent_id").references(() => events.id, { onDelete: "set null" }),
+});
+```
+
+**Recurrence UI Component:**
+```typescript
+// client/src/components/recurrence-selector.tsx
+export function RecurrenceSelector({ value, onChange }) {
+  const [recurrence, setRecurrence] = useState(value || {
+    enabled: false,
+    frequency: 'WEEKLY',
+    interval: 1,
+    daysOfWeek: [],
+    endDate: null,
+    occurrences: null,
+  });
+  
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center space-x-2">
+        <Switch
+          checked={recurrence.enabled}
+          onCheckedChange={(checked) => {
+            const updated = { ...recurrence, enabled: checked };
+            setRecurrence(updated);
+            onChange(updated);
+          }}
+        />
+        <Label>Repeat this content</Label>
+      </div>
+      
+      {recurrence.enabled && (
+        <>
+          {/* Frequency */}
+          <div className="space-y-2">
+            <Label>Repeat every</Label>
+            <div className="flex gap-2">
+              <Input
+                type="number"
+                min="1"
+                value={recurrence.interval}
+                onChange={(e) => {
+                  const updated = { ...recurrence, interval: parseInt(e.target.value) };
+                  setRecurrence(updated);
+                  onChange(updated);
+                }}
+                className="w-20"
+              />
+              <Select
+                value={recurrence.frequency}
+                onValueChange={(value) => {
+                  const updated = { ...recurrence, frequency: value };
+                  setRecurrence(updated);
+                  onChange(updated);
+                }}
+              >
+                <SelectTrigger className="w-32">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="DAILY">Day(s)</SelectItem>
+                  <SelectItem value="WEEKLY">Week(s)</SelectItem>
+                  <SelectItem value="MONTHLY">Month(s)</SelectItem>
+                  <SelectItem value="YEARLY">Year(s)</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          
+          {/* Days of week for weekly recurrence */}
+          {recurrence.frequency === 'WEEKLY' && (
+            <div className="space-y-2">
+              <Label>Repeat on</Label>
+              <div className="flex flex-wrap gap-2">
+                {['MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY', 'SUNDAY'].map(day => (
+                  <Button
+                    key={day}
+                    variant={recurrence.daysOfWeek?.includes(day) ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => {
+                      const days = recurrence.daysOfWeek || [];
+                      const updated = {
+                        ...recurrence,
+                        daysOfWeek: days.includes(day)
+                          ? days.filter(d => d !== day)
+                          : [...days, day]
+                      };
+                      setRecurrence(updated);
+                      onChange(updated);
+                    }}
+                  >
+                    {day.slice(0, 3)}
+                  </Button>
+                ))}
+              </div>
+            </div>
+          )}
+          
+          {/* End condition */}
+          <div className="space-y-2">
+            <Label>Ends</Label>
+            <RadioGroup
+              value={recurrence.endDate ? 'date' : recurrence.occurrences ? 'after' : 'never'}
+              onValueChange={(value) => {
+                if (value === 'never') {
+                  const updated = { ...recurrence, endDate: null, occurrences: null };
+                  setRecurrence(updated);
+                  onChange(updated);
+                }
+              }}
+            >
+              <div className="flex items-center space-x-2">
+                <RadioGroupItem value="never" id="never" />
+                <Label htmlFor="never">Never</Label>
+              </div>
+              
+              <div className="flex items-center space-x-2">
+                <RadioGroupItem value="date" id="date" />
+                <Label htmlFor="date">On</Label>
+                <Input
+                  type="date"
+                  value={recurrence.endDate || ''}
+                  onChange={(e) => {
+                    const updated = { ...recurrence, endDate: e.target.value, occurrences: null };
+                    setRecurrence(updated);
+                    onChange(updated);
+                  }}
+                  disabled={!recurrence.endDate && !recurrence.occurrences}
+                />
+              </div>
+              
+              <div className="flex items-center space-x-2">
+                <RadioGroupItem value="after" id="after" />
+                <Label htmlFor="after">After</Label>
+                <Input
+                  type="number"
+                  min="1"
+                  value={recurrence.occurrences || ''}
+                  onChange={(e) => {
+                    const updated = { ...recurrence, occurrences: parseInt(e.target.value), endDate: null };
+                    setRecurrence(updated);
+                    onChange(updated);
+                  }}
+                  className="w-20"
+                  disabled={!recurrence.occurrences && !recurrence.endDate}
+                />
+                <Label>occurrences</Label>
+              </div>
+            </RadioGroup>
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+```
+
+**Backend - Generate Recurring Instances:**
+```typescript
+// server/recurrenceService.ts
+import { addDays, addWeeks, addMonths, addYears, isBefore, isAfter } from 'date-fns';
+
+export class RecurrenceService {
+  static generateOccurrences(
+    baseDate: Date,
+    pattern: RecurrencePattern,
+    maxDate?: Date
+  ): Date[] {
+    const occurrences: Date[] = [baseDate];
+    let currentDate = new Date(baseDate);
+    let count = 1;
+    
+    const endDate = pattern.endDate ? new Date(pattern.endDate) : maxDate;
+    const maxOccurrences = pattern.occurrences || 100; // Safety limit
+    
+    while (count < maxOccurrences) {
+      // Calculate next date based on frequency
+      switch (pattern.frequency) {
+        case 'DAILY':
+          currentDate = addDays(currentDate, pattern.interval);
+          break;
+        case 'WEEKLY':
+          currentDate = addWeeks(currentDate, pattern.interval);
+          // Adjust to specified days of week
+          if (pattern.daysOfWeek && pattern.daysOfWeek.length > 0) {
+            // Implementation for specific days
+          }
+          break;
+        case 'MONTHLY':
+          currentDate = addMonths(currentDate, pattern.interval);
+          break;
+        case 'YEARLY':
+          currentDate = addYears(currentDate, pattern.interval);
+          break;
+      }
+      
+      // Check if we've exceeded the end date
+      if (endDate && isAfter(currentDate, endDate)) {
+        break;
+      }
+      
+      occurrences.push(new Date(currentDate));
+      count++;
+    }
+    
+    return occurrences;
+  }
+  
+  static async createRecurringInstances(
+    parentId: string,
+    parentType: 'social' | 'email' | 'event',
+    pattern: RecurrencePattern,
+    storage: IStorage
+  ) {
+    let parent;
+    switch (parentType) {
+      case 'social':
+        parent = await storage.getSocialPost(parentId);
+        break;
+      case 'email':
+        parent = await storage.getEmailCampaign(parentId);
+        break;
+      case 'event':
+        parent = await storage.getEvent(parentId);
+        break;
+    }
+    
+    if (!parent) throw new Error('Parent not found');
+    
+    // Generate future dates
+    const baseDate = new Date(parent.scheduledDate || parent.startDate);
+    const occurrences = this.generateOccurrences(baseDate, pattern);
+    
+    // Create instances (skip first as it's the parent)
+    for (let i = 1; i < occurrences.length; i++) {
+      const date = occurrences[i];
+      
+      switch (parentType) {
+        case 'social':
+          await storage.createSocialPost({
+            ...parent,
+            id: undefined,
+            scheduledDate: date,
+            recurrenceParentId: parentId,
+            isRecurrenceParent: false,
+          });
+          break;
+        case 'email':
+          await storage.createEmailCampaign({
+            ...parent,
+            id: undefined,
+            scheduledDate: date,
+            recurrenceParentId: parentId,
+            isRecurrenceParent: false,
+          });
+          break;
+        case 'event':
+          await storage.createEvent({
+            ...parent,
+            id: undefined,
+            startDate: date,
+            endDate: addDays(date, differenceInDays(parent.endDate, parent.startDate)),
+            recurrenceParentId: parentId,
+            isRecurrenceParent: false,
+          });
+          break;
+      }
+    }
+  }
+}
+```
+
+**Add to Creation Forms:**
+```typescript
+// Add to social post, email, event creation forms
+<FormField label="Recurrence">
+  <RecurrenceSelector
+    value={formData.recurrence}
+    onChange={(recurrence) => setFormData({...formData, recurrence})}
+  />
+</FormField>
+```
+
+---
+
+## FEATURE 5: APPROVAL WORKFLOW
+
+### 5.1 New Status Flow with Marketing Manager Approval
+
+**Current Flow:**
+DRAFT → READY_FOR_GRAPHICS → GRAPHICS_READY → PUBLISHED
+
+**New Flow:**
+DRAFT → READY_FOR_GRAPHICS → GRAPHICS_READY → **PENDING_APPROVAL** → **APPROVED** / **REJECTED** → PUBLISHED
+
+**Database Schema Changes:**
+```typescript
+// Add approval tracking
+export const approvals = pgTable("approvals", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  contentType: text("content_type").notNull(), // "SOCIAL_POST" | "EMAIL_CAMPAIGN" | "EVENT"
+  contentId: varchar("content_id").notNull(),
+  status: text("status").notNull(), // "PENDING" | "APPROVED" | "REJECTED"
+  requestedById: varchar("requested_by_id").notNull().references(() => users.id),
+  reviewerId: varchar("reviewer_id").references(() => users.id),
+  reviewedAt: timestamp("reviewed_at"),
+  rejectionReason: text("rejection_reason"),
+  requestedChanges: text("requested_changes"),
+  slackMessageTs: text("slack_message_ts"), // Slack thread timestamp for tracking
+  slackChannelId: text("slack_channel_id"),
+  assetPreviewUrl: text("asset_preview_url"), // URL to asset for Slack preview
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
+// Update status enums
+export const socialPostStatusEnum = pgEnum("social_post_status", [
+  "DRAFT",
+  "READY_FOR_GRAPHICS",
+  "GRAPHICS_READY",
+  "PENDING_APPROVAL",
+  "APPROVED",
+  "REJECTED",
+  "PUBLISHED",
+  "ARCHIVED"
+]);
+
+export const emailStatusEnum = pgEnum("email_status", [
+  "DRAFT",
+  "READY_FOR_GRAPHICS",
+  "GRAPHICS_READY",
+  "PENDING_APPROVAL",
+  "APPROVED",
+  "REJECTED",
+  "SENT",
+  "SCHEDULED"
+]);
+
+// Validation schemas
+export const insertApprovalSchema = createInsertSchema(approvals);
+export type Approval = z.infer<typeof selectApprovalSchema>;
+```
+
+### 5.2 Slack Approval Notifications
+
+**Slack Integration Service:**
+```typescript
+// server/slackApprovalService.ts
+export async function sendApprovalRequest(
+  contentType: 'social' | 'email' | 'event',
+  content: any,
+  approval: Approval
+) {
+  const botToken = process.env.SLACK_BOT_TOKEN;
+  if (!botToken) {
+    throw new Error('SLACK_BOT_TOKEN not configured');
+  }
+  
+  // Get marketing manager's Slack user ID
+  const marketingManager = await storage.getUserByRole('MARKETING_MANAGER');
+  if (!marketingManager?.slackUserId) {
+    throw new Error('Marketing manager Slack ID not configured');
+  }
+  
+  // Prepare content preview
+  let title, description, assetUrl, contentUrl;
+  switch (contentType) {
+    case 'social':
+      title = `${content.platform} Post Approval Request`;
+      description = content.caption?.substring(0, 200);
+      assetUrl = content.assetUrl;
+      contentUrl = `${process.env.APP_URL}/social/${content.id}`;
+      break;
+    case 'email':
+      title = `Email Campaign Approval Request`;
+      description = content.subject;
+      assetUrl = content.headerImageUrl;
+      contentUrl = `${process.env.APP_URL}/email/${content.id}`;
+      break;
+    case 'event':
+      title = `Event Graphics Approval Request`;
+      description = content.name;
+      assetUrl = content.bannerUrl;
+      contentUrl = `${process.env.APP_URL}/events/${content.id}`;
+      break;
+  }
+  
+  // Build Slack message with image preview and action buttons
+  const blocks = [
+    {
+      type: "header",
+      text: {
+        type: "plain_text",
+        text: `🎨 ${title}`,
+      }
+    },
+    {
+      type: "section",
+      text: {
+        type: "mrkdwn",
+        text: `*Description:*\n${description}\n\n*Scheduled for:* ${formatDate(content.scheduledDate || content.startDate)}`
+      }
+    },
+  ];
+  
+  // Add image preview if available
+  if (assetUrl) {
+    blocks.push({
+      type: "image",
+      image_url: assetUrl,
+      alt_text: "Content preview"
+    });
+  }
+  
+  // Add action buttons
+  blocks.push({
+    type: "actions",
+    block_id: `approval_${approval.id}`,
+    elements: [
+      {
+        type: "button",
+        text: {
+          type: "plain_text",
+          text: "✅ Approve"
+        },
+        style: "primary",
+        value: approval.id,
+        action_id: "approve_content"
+      },
+      {
+        type: "button",
+        text: {
+          type: "plain_text",
+          text: "❌ Request Changes"
+        },
+        style: "danger",
+        value: approval.id,
+        action_id: "reject_content"
+      },
+      {
+        type: "button",
+        text: {
+          type: "plain_text",
+          text: "👀 View in App"
+        },
+        url: contentUrl,
+        action_id: "view_content"
+      }
+    ]
+  });
+  
+  // Send to Slack
+  const response = await fetch("https://slack.com/api/chat.postMessage", {
+    method: "POST",
+    headers: {
+      "Authorization": `Bearer ${botToken}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      channel: marketingManager.slackUserId,
+      text: `New approval request: ${title}`,
+      blocks: blocks,
+    }),
+  });
+  
+  const data = await response.json();
+  
+  if (!data.ok) {
+    throw new Error(`Slack API error: ${data.error}`);
+  }
+  
+  // Store Slack message timestamp for future updates
+  await storage.updateApproval(approval.id, {
+    slackMessageTs: data.ts,
+    slackChannelId: data.channel,
+  });
+  
+  return data;
+}
+```
+
+**Slack Interactive Endpoints:**
+```typescript
+// server/routes.ts - Add Slack interaction endpoint
+import express from 'express';
+
+app.post("/api/slack/interactions", express.json(), async (req, res) => {
+  try {
+    const payload = JSON.parse(req.body.payload);
+    const action = payload.actions[0];
+    const approvalId = action.value;
+    
+    // Verify Slack signature (important for security)
+    // Implementation here...
+    
+    const approval = await storage.getApproval(approvalId);
+    if (!approval) {
+      return res.status(404).json({ message: "Approval not found" });
+    }
+    
+    if (action.action_id === "approve_content") {
+      // Approve the content
+      await storage.updateApproval(approvalId, {
+        status: "APPROVED",
+        reviewerId: payload.user.id,
+        reviewedAt: new Date(),
+      });
+      
+      // Update content status
+      await updateContentStatus(
+        approval.contentType,
+        approval.contentId,
+        "APPROVED"
+      );
+      
+      // Update Slack message
+      await updateSlackMessage(approval.slackChannelId, approval.slackMessageTs, {
+        text: "✅ Content Approved",
+        blocks: [
+          {
+            type: "section",
+            text: {
+              type: "mrkdwn",
+              text: `✅ *Approved* by <@${payload.user.id}> at ${new Date().toLocaleString()}`
+            }
+          }
+        ]
+      });
+      
+      // Notify designer
+      await notifyDesigner(approval.requestedById, approval.contentType, approval.contentId, "approved");
+      
+      res.json({ ok: true });
+      
+    } else if (action.action_id === "reject_content") {
+      // Open modal for rejection reason
+      await openRejectionModal(payload.trigger_id, approvalId);
+      res.json({ ok: true });
+    }
+    
+  } catch (error) {
+    console.error("Slack interaction error:", error);
+    res.status(500).json({ message: "Internal server error" });
+  }
+});
+
+// Handle rejection modal submission
+app.post("/api/slack/modal-submission", express.json(), async (req, res) => {
+  try {
+    const payload = JSON.parse(req.body.payload);
+    const values = payload.view.state.values;
+    
+    const approvalId = payload.view.private_metadata;
+    const rejectionReason = values.rejection_block.rejection_reason.value;
+    const requestedChanges = values.changes_block.requested_changes.value;
+    
+    const approval = await storage.getApproval(approvalId);
+    
+    // Update approval status
+    await storage.updateApproval(approvalId, {
+      status: "REJECTED",
+      reviewerId: payload.user.id,
+      reviewedAt: new Date(),
+      rejectionReason,
+      requestedChanges,
+    });
+    
+    // Update content status
+    await updateContentStatus(
+      approval.contentType,
+      approval.contentId,
+      "REJECTED"
+    );
+    
+    // Update Slack message
+    await updateSlackMessage(approval.slackChannelId, approval.slackMessageTs, {
+      blocks: [
+        {
+          type: "section",
+          text: {
+            type: "mrkdwn",
+            text: `❌ *Changes Requested* by <@${payload.user.id}>\n\n*Reason:* ${rejectionReason}\n*Requested Changes:*\n${requestedChanges}`
+          }
+        }
+      ]
+    });
+    
+    // Notify designer with changes
+    await notifyDesigner(
+      approval.requestedById,
+      approval.contentType,
+      approval.contentId,
+      "rejected",
+      { rejectionReason, requestedChanges }
+    );
+    
+    res.json({ response_action: "clear" });
+    
+  } catch (error) {
+    console.error("Modal submission error:", error);
+    res.status(500).json({ message: "Internal server error" });
+  }
+});
+
+async function openRejectionModal(triggerId: string, approvalId: string) {
+  const botToken = process.env.SLACK_BOT_TOKEN;
+  
+  await fetch("https://slack.com/api/views.open", {
+    method: "POST",
+    headers: {
+      "Authorization": `Bearer ${botToken}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      trigger_id: triggerId,
+      view: {
+        type: "modal",
+        callback_id: "rejection_modal",
+        private_metadata: approvalId,
+        title: {
+          type: "plain_text",
+          text: "Request Changes"
+        },
+        submit: {
+          type: "plain_text",
+          text: "Submit"
+        },
+        blocks: [
+          {
+            type: "input",
+            block_id: "rejection_block",
+            element: {
+              type: "plain_text_input",
+              action_id: "rejection_reason",
+              placeholder: {
+                type: "plain_text",
+                text: "Brief reason for rejection"
+              }
+            },
+            label: {
+              type: "plain_text",
+              text: "Reason"
+            }
+          },
+          {
+            type: "input",
+            block_id: "changes_block",
+            element: {
+              type: "plain_text_input",
+              action_id: "requested_changes",
+              multiline: true,
+              placeholder: {
+                type: "plain_text",
+                text: "Detailed changes needed..."
+              }
+            },
+            label: {
+              type: "plain_text",
+              text: "Requested Changes"
+            }
+          }
+        ]
+      }
+    }),
+  });
+}
+
+async function updateContentStatus(
+  contentType: string,
+  contentId: string,
+  status: string
+) {
+  switch (contentType) {
+    case 'SOCIAL_POST':
+      await storage.updateSocialPost(contentId, { 
+        assetStatus: status === 'APPROVED' ? 'READY' : 'NEEDS_REVISION' 
+      });
+      break;
+    case 'EMAIL_CAMPAIGN':
+      await storage.updateEmailCampaign(contentId, { 
+        status: status === 'APPROVED' ? 'APPROVED' : 'DRAFT' 
+      });
+      break;
+    case 'EVENT':
+      await storage.updateEvent(contentId, { 
+        status: status === 'APPROVED' ? 'APPROVED' : 'PLANNING' 
+      });
+      break;
+  }
+}
+```
+
+### 5.3 Update Workflow in UI
+
+**Designer Submits for Approval:**
+```typescript
+// When designer marks graphics as ready
+async function submitForApproval(contentType, contentId, content) {
+  // Create approval request
+  const approval = await fetch("/api/approvals", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "Authorization": `Bearer ${token}`
+    },
+    body: JSON.stringify({
+      contentType,
+      contentId,
+      assetPreviewUrl: content.assetUrl,
+    })
+  }).then(r => r.json());
+  
+  // Update content status to PENDING_APPROVAL
+  await updateContentStatus(contentType, contentId, "PENDING_APPROVAL");
+  
+  // Show success message
+  toast.success("Submitted for approval. Marketing manager will be notified via Slack.");
+}
+```
+
+**Show Approval Status in UI:**
+```typescript
+// In content cards/tables
+{post.assetStatus === 'PENDING_APPROVAL' && (
+  <Badge variant="warning" className="flex items-center gap-1">
+    <Clock className="h-3 w-3" />
+    Pending Approval
+  </Badge>
+)}
+
+{post.assetStatus === 'APPROVED' && (
+  <Badge variant="success" className="flex items-center gap-1">
+    <CheckCircle className="h-3 w-3" />
+    Approved
+  </Badge>
+)}
+
+{post.assetStatus === 'REJECTED' && (
+  <Badge variant="destructive" className="flex items-center gap-1">
+    <XCircle className="h-3 w-3" />
+    Changes Requested
+  </Badge>
+)}
+```
+
+**Show Rejection Feedback:**
+```typescript
+// Show rejection reason and requested changes
+{approval?.status === 'REJECTED' && (
+  <Alert variant="destructive">
+    <AlertCircle className="h-4 w-4" />
+    <AlertTitle>Changes Requested</AlertTitle>
+    <AlertDescription>
+      <p className="font-semibold">{approval.rejectionReason}</p>
+      <p className="mt-2 whitespace-pre-wrap">{approval.requestedChanges}</p>
+    </AlertDescription>
+  </Alert>
+)}
+```
+
+---
+
+## IMPLEMENTATION PRIORITY & TIMELINE
+
+### Phase 1 (Week 1-2): Core Infrastructure
+1. Database migrations for all new tables
+2. Update existing schemas with new fields
+3. API routes for promotions and approvals
+4. Basic storage layer implementations
+
+### Phase 2 (Week 2-3): Brand Pages & External Links
+1. Brand detail page with calendar
+2. Promotions management UI
+3. External link buttons (DreamPIM, Asset Portal)
+4. Link content to promotions
+
+### Phase 3 (Week 3-4): Unified Calendar
+1. Calendar component with all content types
+2. Multi-filter system
+3. Color coding by brand
+4. Event click handlers and detail views
+
+### Phase 4 (Week 4-5): Recurring Content
+1. Recurrence pattern database and logic
+2. UI for setting recurrence rules
+3. Backend service to generate instances
+4. Display recurring series in calendar
+
+### Phase 5 (Week 5-6): Approval Workflow
+1. Approval tracking system
+2. Slack integration for approval requests
+3. Interactive Slack buttons (approve/reject)
+4. Rejection modal with feedback
+5. Status updates and notifications
+
+### Phase 6 (Week 6-7): Testing & Polish
+1. End-to-end testing of all workflows
+2. UI/UX refinements
+3. Performance optimization
+4. Documentation
+
+---
+
+## ENVIRONMENT VARIABLES NEEDED
+
+```bash
+# Add to Replit Secrets or .env
+SLACK_BOT_TOKEN=xoxb-your-slack-bot-token
+SLACK_SIGNING_SECRET=your-slack-signing-secret
+APP_URL=https://your-replit-url.repl.co
+```
+
+---
+
+## SLACK APP SETUP
+
+### Required Slack Bot Scopes:
+- `chat:write` - Send messages
+- `users:read` - Look up users by email
+- `users:read.email` - Read user emails
+- `files:read` - Read uploaded files (for asset previews)
+- `im:write` - Send DMs
+
+### Interactive Components:
+1. Enable Interactive Components in Slack App settings
+2. Set Request URL to: `https://your-app.com/api/slack/interactions`
+3. Enable Interactivity
+
+### Slash Commands (Optional):
+- `/approve [content-id]` - Approve content from anywhere in Slack
+- `/marketing-calendar` - Show today's schedule
+
+---
+
+## TESTING CHECKLIST
+
+- [ ] Brand page displays all promotions correctly
+- [ ] External links open in new tabs
+- [ ] Content can be linked to promotions
+- [ ] Unified calendar shows all content types
+- [ ] Calendar filters work correctly
+- [ ] Recurring content generates instances
+- [ ] Weekly recurrence respects day-of-week selection
+- [ ] Designer submission triggers Slack notification
+- [ ] Slack notification includes asset preview
+- [ ] Approve button works in Slack
+- [ ] Reject button opens modal
+- [ ] Rejection feedback appears in UI
+- [ ] Publisher sees approved content only
+- [ ] Status badges update correctly
+
+---
+
+## NOTES & CONSIDERATIONS
+
+1. **Slack Rate Limits**: Be mindful of Slack API rate limits. Batch notifications where possible.
+
+2. **Image Hosting**: Ensure asset URLs are publicly accessible for Slack previews. Use signed URLs if needed.
+
+3. **Timezone Handling**: Store all dates in UTC, display in user's timezone.
+
+4. **Recurring Content Limits**: Set reasonable limits (max 52 weeks or 365 days ahead) to prevent database bloat.
+
+5. **Approval Permissions**: Only marketing managers should be able to approve. Enforce in middleware.
+
+6. **Concurrent Approvals**: Handle case where multiple items are pending approval simultaneously.
+
+7. **Calendar Performance**: With many recurring items, calendar may slow down. Implement pagination or date range limits.
+
+8. **Deletion Handling**: When deleting recurring parent, decide whether to delete all instances or just parent.
+
+9. **Edit Recurring**: Provide options: "Edit this instance", "Edit all future", "Edit all in series"
+
+10. **Mobile Responsiveness**: Ensure calendar and brand pages work on mobile devices.
+
+---
+
+## SECURITY CONSIDERATIONS
+
+1. **Slack Signature Verification**: Always verify Slack request signatures
+2. **Permission Checks**: Verify user roles before allowing approval actions
+3. **SQL Injection**: Use parameterized queries (Drizzle handles this)
+4. **XSS Prevention**: Sanitize user input in rejection reasons
+5. **CSRF Protection**: Implement CSRF tokens for state-changing operations
+
+---
+
+This comprehensive prompt covers all requested features with implementation details, code examples, and testing guidelines. Start with Phase 1 and work through sequentially for best results.

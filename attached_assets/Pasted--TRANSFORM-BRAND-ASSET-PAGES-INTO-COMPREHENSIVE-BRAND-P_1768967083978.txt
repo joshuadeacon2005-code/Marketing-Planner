@@ -1,0 +1,1490 @@
+# TRANSFORM BRAND ASSET PAGES INTO COMPREHENSIVE BRAND PAGES WITH CALENDARS
+
+## Objective
+Convert the current brand asset pages into full-featured brand management pages, each with its own pre-filtered calendar showing that brand's complete marketing plan. All brand calendars feed into and contribute to the main unified calendar on the dashboard/home page.
+
+---
+
+## CURRENT STATE ANALYSIS
+
+**Current Structure:**
+- Brand pages exist primarily in the Assets section
+- Each brand has an asset library view
+- Navigation: Assets → Select Brand → View brand's assets
+
+**What We're Building:**
+- Full brand pages that are first-class destinations
+- Each brand has its own dedicated marketing calendar
+- Brand calendar = pre-filtered view of main calendar (showing only that brand's content)
+- All brand data contributes to main dashboard calendar
+- Brand pages become command centers for managing each brand's marketing plan
+
+---
+
+## ARCHITECTURE OVERVIEW
+
+```
+Main Dashboard Calendar (All Brands)
+    ↓
+    ├── Skip Hop Brand Page → Skip Hop Calendar (filtered)
+    ├── Beaba Brand Page → Beaba Calendar (filtered)
+    ├── Bloom Brand Page → Bloom Calendar (filtered)
+    └── [Other Brands] → [Their Calendars] (filtered)
+
+Each brand calendar shows:
+- Social posts for that brand
+- Email campaigns for that brand
+- Events featuring that brand
+- Promotions/discounts for that brand
+- Tasks related to that brand
+```
+
+**Key Principle:** 
+One source of truth (main calendar data), multiple views (dashboard shows all, brand pages show filtered subset)
+
+---
+
+## STEP 1: RESTRUCTURE NAVIGATION & ROUTING
+
+### 1.1 Update Sidebar Navigation
+
+**Current:**
+```
+Dashboard
+Social
+Email
+Events
+Tasks
+Assets → (brand selection)
+Settings
+```
+
+**New:**
+```
+Dashboard (Main Calendar - All Brands)
+Social
+Email
+Events
+Tasks
+───────────
+BRANDS
+├── Skip Hop
+├── Beaba
+├── Bloom
+├── [Other Brands...]
+───────────
+Assets Library (Global)
+Settings
+```
+
+**Implementation:**
+```typescript
+// client/src/components/layout/app-sidebar.tsx
+import { Building2, Calendar, Image } from "lucide-react";
+
+export function AppSidebar() {
+  const { data: brands } = useQuery({
+    queryKey: ["/api/brands"],
+    queryFn: async () => {
+      const res = await fetch("/api/brands", {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      return res.json();
+    },
+  });
+
+  const activeBrands = brands?.filter(b => b.isActive) || [];
+
+  return (
+    <Sidebar>
+      <SidebarContent>
+        <SidebarGroup>
+          <SidebarGroupLabel>Main</SidebarGroupLabel>
+          <SidebarGroupContent>
+            <SidebarMenu>
+              <SidebarMenuItem>
+                <SidebarMenuButton asChild>
+                  <a href="/"><Calendar className="h-4 w-4" />Dashboard</a>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+              <SidebarMenuItem>
+                <SidebarMenuButton asChild>
+                  <a href="/social">Social Media</a>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+              <SidebarMenuItem>
+                <SidebarMenuButton asChild>
+                  <a href="/email">Email Campaigns</a>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+              <SidebarMenuItem>
+                <SidebarMenuButton asChild>
+                  <a href="/events">Events</a>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+              <SidebarMenuItem>
+                <SidebarMenuButton asChild>
+                  <a href="/tasks">Tasks</a>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
+
+        {/* BRANDS SECTION */}
+        <SidebarGroup>
+          <SidebarGroupLabel>Brands</SidebarGroupLabel>
+          <SidebarGroupContent>
+            <SidebarMenu>
+              {activeBrands.map((brand) => (
+                <SidebarMenuItem key={brand.id}>
+                  <SidebarMenuButton asChild>
+                    <a href={`/brands/${brand.id}`} className="flex items-center gap-2">
+                      <div 
+                        className="w-3 h-3 rounded-full" 
+                        style={{ backgroundColor: brand.color }}
+                      />
+                      {brand.name}
+                    </a>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              ))}
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
+
+        <SidebarGroup>
+          <SidebarGroupLabel>Resources</SidebarGroupLabel>
+          <SidebarGroupContent>
+            <SidebarMenu>
+              <SidebarMenuItem>
+                <SidebarMenuButton asChild>
+                  <a href="/assets">
+                    <Image className="h-4 w-4" />
+                    Assets Library
+                  </a>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
+      </SidebarContent>
+    </Sidebar>
+  );
+}
+```
+
+### 1.2 Update Routes
+
+**Add to App.tsx:**
+```typescript
+// client/src/App.tsx
+import BrandPage from "@/pages/brand-page";
+
+function App() {
+  return (
+    <Router>
+      <Route path="/" component={Dashboard} />
+      <Route path="/social" component={SocialPage} />
+      <Route path="/email" component={EmailPage} />
+      <Route path="/events" component={EventsPage} />
+      <Route path="/tasks" component={TasksPage} />
+      
+      {/* NEW: Brand pages */}
+      <Route path="/brands/:brandId" component={BrandPage} />
+      
+      <Route path="/assets" component={AssetsPage} />
+      <Route path="/settings" component={SettingsPage} />
+      <Route path="/login" component={LoginPage} />
+      <Route component={NotFound} />
+    </Router>
+  );
+}
+```
+
+---
+
+## STEP 2: CREATE BRAND PAGE COMPONENT
+
+### 2.1 Brand Page Layout
+
+**File: `client/src/pages/brand-page.tsx`**
+
+```typescript
+import { useParams } from "wouter";
+import { useQuery } from "@tanstack/react-query";
+import { Calendar, TrendingUp, Target, ExternalLink, Plus } from "lucide-react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Badge } from "@/components/ui/badge";
+import { BrandCalendar } from "@/components/brand-calendar";
+import { BrandStats } from "@/components/brand-stats";
+import { ActivePromotions } from "@/components/active-promotions";
+import { RecentActivity } from "@/components/recent-activity";
+
+export default function BrandPage() {
+  const { brandId } = useParams();
+
+  // Fetch brand details
+  const { data: brand, isLoading: brandLoading } = useQuery({
+    queryKey: ["/api/brands", brandId],
+    queryFn: async () => {
+      const res = await fetch(`/api/brands/${brandId}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (!res.ok) throw new Error("Brand not found");
+      return res.json();
+    },
+  });
+
+  if (brandLoading) {
+    return <div className="p-6">Loading...</div>;
+  }
+
+  if (!brand) {
+    return <div className="p-6">Brand not found</div>;
+  }
+
+  return (
+    <div className="p-6 space-y-6">
+      {/* Brand Header */}
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-4">
+          <div 
+            className="w-16 h-16 rounded-xl shadow-lg" 
+            style={{ backgroundColor: brand.color }}
+          />
+          <div>
+            <h1 className="text-3xl font-bold">{brand.name}</h1>
+            <p className="text-muted-foreground">Marketing Plan & Calendar</p>
+          </div>
+        </div>
+
+        {/* Quick Actions */}
+        <div className="flex gap-2">
+          {brand.dreamPimUrl && (
+            <Button 
+              variant="outline" 
+              size="sm"
+              onClick={() => window.open(brand.dreamPimUrl, '_blank')}
+            >
+              <ExternalLink className="h-4 w-4 mr-2" />
+              DreamPIM
+            </Button>
+          )}
+          {brand.assetPortalUrl && (
+            <Button 
+              variant="outline" 
+              size="sm"
+              onClick={() => window.open(brand.assetPortalUrl, '_blank')}
+            >
+              <ExternalLink className="h-4 w-4 mr-2" />
+              {brand.assetPortalName || "Asset Portal"}
+            </Button>
+          )}
+          <Button size="sm">
+            <Plus className="h-4 w-4 mr-2" />
+            New Content
+          </Button>
+        </div>
+      </div>
+
+      {/* Quick Stats */}
+      <BrandStats brandId={brandId} />
+
+      {/* Main Content Tabs */}
+      <Tabs defaultValue="calendar" className="space-y-4">
+        <TabsList>
+          <TabsTrigger value="calendar">
+            <Calendar className="h-4 w-4 mr-2" />
+            Calendar
+          </TabsTrigger>
+          <TabsTrigger value="promotions">
+            <Target className="h-4 w-4 mr-2" />
+            Promotions
+          </TabsTrigger>
+          <TabsTrigger value="activity">
+            <TrendingUp className="h-4 w-4 mr-2" />
+            Activity
+          </TabsTrigger>
+        </TabsList>
+
+        {/* CALENDAR TAB - Main Feature */}
+        <TabsContent value="calendar" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <CardTitle>{brand.name} Marketing Calendar</CardTitle>
+                <div className="text-sm text-muted-foreground">
+                  Showing all content for this brand
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <BrandCalendar brandId={brandId} brandColor={brand.color} />
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* PROMOTIONS TAB */}
+        <TabsContent value="promotions" className="space-y-4">
+          <ActivePromotions brandId={brandId} />
+        </TabsContent>
+
+        {/* ACTIVITY TAB */}
+        <TabsContent value="activity" className="space-y-4">
+          <RecentActivity brandId={brandId} />
+        </TabsContent>
+      </Tabs>
+    </div>
+  );
+}
+```
+
+---
+
+## STEP 3: CREATE BRAND CALENDAR COMPONENT
+
+### 3.1 Brand-Specific Calendar (Pre-filtered View)
+
+**File: `client/src/components/brand-calendar.tsx`**
+
+```typescript
+import { useMemo, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { Calendar, momentLocalizer, View } from 'react-big-calendar';
+import moment from 'moment';
+import 'react-big-calendar/lib/css/react-big-calendar.css';
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { 
+  Select, 
+  SelectContent, 
+  SelectItem, 
+  SelectTrigger, 
+  SelectValue 
+} from "@/components/ui/select";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Label } from "@/components/ui/label";
+
+const localizer = momentLocalizer(moment);
+
+interface BrandCalendarProps {
+  brandId: string;
+  brandColor: string;
+}
+
+export function BrandCalendar({ brandId, brandColor }: BrandCalendarProps) {
+  const [view, setView] = useState<View>('month');
+  const [date, setDate] = useState(new Date());
+  
+  // Sub-filters for brand calendar
+  const [filters, setFilters] = useState({
+    platforms: [] as string[],
+    regionIds: [] as string[],
+    contentTypes: ['social', 'email', 'event', 'promotion', 'task'],
+  });
+
+  // Get all regions for filter
+  const { data: regions } = useQuery({
+    queryKey: ["/api/regions"],
+  });
+
+  // Fetch all content FOR THIS BRAND ONLY
+  const { data: socialPosts } = useQuery({
+    queryKey: ["/api/social", { brandId }],
+    queryFn: async () => {
+      const res = await fetch(`/api/social?brandId=${brandId}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      return res.json();
+    },
+    enabled: filters.contentTypes.includes('social'),
+  });
+
+  const { data: emailCampaigns } = useQuery({
+    queryKey: ["/api/email", { brandId }],
+    queryFn: async () => {
+      const res = await fetch(`/api/email?brandId=${brandId}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      return res.json();
+    },
+    enabled: filters.contentTypes.includes('email'),
+  });
+
+  const { data: events } = useQuery({
+    queryKey: ["/api/events", { brandId }],
+    queryFn: async () => {
+      const res = await fetch(`/api/events?brandId=${brandId}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      return res.json();
+    },
+    enabled: filters.contentTypes.includes('event'),
+  });
+
+  const { data: promotions } = useQuery({
+    queryKey: ["/api/promotions", { brandId }],
+    queryFn: async () => {
+      const res = await fetch(`/api/promotions?brandId=${brandId}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      return res.json();
+    },
+    enabled: filters.contentTypes.includes('promotion'),
+  });
+
+  const { data: tasks } = useQuery({
+    queryKey: ["/api/tasks", { brandId }],
+    queryFn: async () => {
+      const res = await fetch(`/api/tasks?brandId=${brandId}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      return res.json();
+    },
+    enabled: filters.contentTypes.includes('task'),
+  });
+
+  // Transform all data into calendar events
+  const calendarEvents = useMemo(() => {
+    const events: any[] = [];
+
+    // Apply sub-filters (platform, region)
+    const applyFilters = (item: any) => {
+      if (filters.platforms.length > 0 && item.platform) {
+        if (!filters.platforms.includes(item.platform)) return false;
+      }
+      if (filters.regionIds.length > 0 && item.regionId) {
+        if (!filters.regionIds.includes(item.regionId)) return false;
+      }
+      return true;
+    };
+
+    // Social posts
+    if (socialPosts) {
+      socialPosts.filter(applyFilters).forEach((post: any) => {
+        events.push({
+          id: `social-${post.id}`,
+          title: `📱 ${post.platform} Post`,
+          start: new Date(post.scheduledDate),
+          end: new Date(post.scheduledDate),
+          resource: { type: 'social', data: post },
+          color: brandColor,
+          textColor: '#ffffff',
+        });
+      });
+    }
+
+    // Email campaigns
+    if (emailCampaigns) {
+      emailCampaigns.filter(applyFilters).forEach((email: any) => {
+        events.push({
+          id: `email-${email.id}`,
+          title: `📧 ${email.subject}`,
+          start: new Date(email.scheduledDate),
+          end: new Date(email.scheduledDate),
+          resource: { type: 'email', data: email },
+          color: brandColor,
+          textColor: '#ffffff',
+        });
+      });
+    }
+
+    // Events
+    if (events) {
+      events.filter(applyFilters).forEach((event: any) => {
+        events.push({
+          id: `event-${event.id}`,
+          title: `🎪 ${event.name}`,
+          start: new Date(event.startDate),
+          end: new Date(event.endDate),
+          resource: { type: 'event', data: event },
+          color: brandColor,
+          textColor: '#ffffff',
+          allDay: true,
+        });
+      });
+    }
+
+    // Promotions
+    if (promotions) {
+      promotions.filter(applyFilters).forEach((promo: any) => {
+        events.push({
+          id: `promo-${promo.id}`,
+          title: `🎉 ${promo.name}`,
+          start: new Date(promo.startDate),
+          end: new Date(promo.endDate),
+          resource: { type: 'promotion', data: promo },
+          color: brandColor,
+          textColor: '#ffffff',
+          allDay: true,
+        });
+      });
+    }
+
+    // Tasks
+    if (tasks) {
+      tasks
+        .filter((t: any) => t.dueDate)
+        .filter(applyFilters)
+        .forEach((task: any) => {
+          events.push({
+            id: `task-${task.id}`,
+            title: `✓ ${task.title}`,
+            start: new Date(task.dueDate),
+            end: new Date(task.dueDate),
+            resource: { type: 'task', data: task },
+            color: brandColor,
+            textColor: '#ffffff',
+          });
+        });
+    }
+
+    return events;
+  }, [socialPosts, emailCampaigns, events, promotions, tasks, filters, brandColor]);
+
+  const eventStyleGetter = (event: any) => {
+    return {
+      style: {
+        backgroundColor: event.color,
+        borderColor: event.color,
+        color: event.textColor,
+        borderRadius: '4px',
+        border: 'none',
+        fontSize: '0.875rem',
+      }
+    };
+  };
+
+  const handleSelectEvent = (event: any) => {
+    // Navigate to the specific content item
+    const { type, data } = event.resource;
+    switch (type) {
+      case 'social':
+        window.location.href = `/social?selected=${data.id}`;
+        break;
+      case 'email':
+        window.location.href = `/email?selected=${data.id}`;
+        break;
+      case 'event':
+        window.location.href = `/events?selected=${data.id}`;
+        break;
+      case 'promotion':
+        // Open promotion detail dialog
+        break;
+      case 'task':
+        window.location.href = `/tasks?selected=${data.id}`;
+        break;
+    }
+  };
+
+  return (
+    <div className="space-y-4">
+      {/* Sub-Filters */}
+      <div className="flex flex-wrap gap-4 p-4 bg-muted/50 rounded-lg">
+        {/* Platform Filter */}
+        <div className="flex-1 min-w-[200px]">
+          <Label className="mb-2 block text-sm">Platforms</Label>
+          <div className="space-y-2">
+            {['INSTAGRAM', 'FACEBOOK', 'LINKEDIN', 'TWITTER', 'TIKTOK'].map((platform) => (
+              <div key={platform} className="flex items-center space-x-2">
+                <Checkbox
+                  id={`platform-${platform}`}
+                  checked={filters.platforms.includes(platform)}
+                  onCheckedChange={(checked) => {
+                    setFilters({
+                      ...filters,
+                      platforms: checked
+                        ? [...filters.platforms, platform]
+                        : filters.platforms.filter(p => p !== platform)
+                    });
+                  }}
+                />
+                <label
+                  htmlFor={`platform-${platform}`}
+                  className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                >
+                  {platform}
+                </label>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Region Filter */}
+        <div className="flex-1 min-w-[200px]">
+          <Label className="mb-2 block text-sm">Regions</Label>
+          <div className="space-y-2">
+            {regions?.map((region: any) => (
+              <div key={region.id} className="flex items-center space-x-2">
+                <Checkbox
+                  id={`region-${region.id}`}
+                  checked={filters.regionIds.includes(region.id)}
+                  onCheckedChange={(checked) => {
+                    setFilters({
+                      ...filters,
+                      regionIds: checked
+                        ? [...filters.regionIds, region.id]
+                        : filters.regionIds.filter(r => r !== region.id)
+                    });
+                  }}
+                />
+                <label
+                  htmlFor={`region-${region.id}`}
+                  className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                >
+                  {region.name}
+                </label>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Content Type Filter */}
+        <div className="flex-1 min-w-[200px]">
+          <Label className="mb-2 block text-sm">Content Types</Label>
+          <div className="space-y-2">
+            {[
+              { value: 'social', label: 'Social Posts' },
+              { value: 'email', label: 'Emails' },
+              { value: 'event', label: 'Events' },
+              { value: 'promotion', label: 'Promotions' },
+              { value: 'task', label: 'Tasks' },
+            ].map((type) => (
+              <div key={type.value} className="flex items-center space-x-2">
+                <Checkbox
+                  id={`type-${type.value}`}
+                  checked={filters.contentTypes.includes(type.value)}
+                  onCheckedChange={(checked) => {
+                    setFilters({
+                      ...filters,
+                      contentTypes: checked
+                        ? [...filters.contentTypes, type.value]
+                        : filters.contentTypes.filter(t => t !== type.value)
+                    });
+                  }}
+                />
+                <label
+                  htmlFor={`type-${type.value}`}
+                  className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                >
+                  {type.label}
+                </label>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* Event Count Summary */}
+      <div className="flex items-center gap-2">
+        <Badge variant="outline">
+          {calendarEvents.length} items scheduled
+        </Badge>
+        {filters.platforms.length > 0 && (
+          <Badge variant="secondary">
+            {filters.platforms.length} platforms selected
+          </Badge>
+        )}
+        {filters.regionIds.length > 0 && (
+          <Badge variant="secondary">
+            {filters.regionIds.length} regions selected
+          </Badge>
+        )}
+      </div>
+
+      {/* Calendar */}
+      <div className="bg-white rounded-lg border">
+        <Calendar
+          localizer={localizer}
+          events={calendarEvents}
+          startAccessor="start"
+          endAccessor="end"
+          style={{ height: 700 }}
+          view={view}
+          onView={setView}
+          date={date}
+          onNavigate={setDate}
+          eventPropGetter={eventStyleGetter}
+          onSelectEvent={handleSelectEvent}
+          views={['month', 'week', 'day', 'agenda']}
+          popup
+          tooltipAccessor={(event) => event.title}
+        />
+      </div>
+    </div>
+  );
+}
+```
+
+---
+
+## STEP 4: CREATE SUPPORTING COMPONENTS
+
+### 4.1 Brand Stats Component
+
+**File: `client/src/components/brand-stats.tsx`**
+
+```typescript
+import { useQuery } from "@tanstack/react-query";
+import { Card, CardContent } from "@/components/ui/card";
+import { TrendingUp, Calendar, Target, CheckCircle } from "lucide-react";
+
+interface BrandStatsProps {
+  brandId: string;
+}
+
+export function BrandStats({ brandId }: BrandStatsProps) {
+  const { data: stats } = useQuery({
+    queryKey: ["/api/brands", brandId, "stats"],
+    queryFn: async () => {
+      const res = await fetch(`/api/brands/${brandId}/stats`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      return res.json();
+    },
+  });
+
+  const statCards = [
+    {
+      title: "Posts This Month",
+      value: stats?.postsThisMonth || 0,
+      icon: TrendingUp,
+      color: "text-blue-600",
+    },
+    {
+      title: "Upcoming Events",
+      value: stats?.upcomingEvents || 0,
+      icon: Calendar,
+      color: "text-purple-600",
+    },
+    {
+      title: "Active Promotions",
+      value: stats?.activePromotions || 0,
+      icon: Target,
+      color: "text-orange-600",
+    },
+    {
+      title: "Completed Tasks",
+      value: stats?.completedTasks || 0,
+      icon: CheckCircle,
+      color: "text-green-600",
+    },
+  ];
+
+  return (
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+      {statCards.map((stat) => (
+        <Card key={stat.title}>
+          <CardContent className="pt-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-muted-foreground">
+                  {stat.title}
+                </p>
+                <p className="text-2xl font-bold mt-2">{stat.value}</p>
+              </div>
+              <stat.icon className={`h-8 w-8 ${stat.color}`} />
+            </div>
+          </CardContent>
+        </Card>
+      ))}
+    </div>
+  );
+}
+```
+
+### 4.2 Active Promotions Component
+
+**File: `client/src/components/active-promotions.tsx`**
+
+```typescript
+import { useQuery } from "@tanstack/react-query";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Plus, ExternalLink } from "lucide-react";
+import { formatDate } from "@/lib/utils";
+
+interface ActivePromotionsProps {
+  brandId: string;
+}
+
+export function ActivePromotions({ brandId }: ActivePromotionsProps) {
+  const { data: promotions } = useQuery({
+    queryKey: ["/api/promotions", { brandId }],
+    queryFn: async () => {
+      const res = await fetch(`/api/promotions?brandId=${brandId}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      return res.json();
+    },
+  });
+
+  const activePromotions = promotions?.filter((p: any) => p.status === 'ACTIVE') || [];
+  const scheduledPromotions = promotions?.filter((p: any) => p.status === 'SCHEDULED') || [];
+
+  return (
+    <div className="space-y-4">
+      <Card>
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <CardTitle>Active Promotions</CardTitle>
+            <Button size="sm">
+              <Plus className="h-4 w-4 mr-2" />
+              New Promotion
+            </Button>
+          </div>
+        </CardHeader>
+        <CardContent>
+          {activePromotions.length === 0 ? (
+            <p className="text-muted-foreground text-center py-8">
+              No active promotions
+            </p>
+          ) : (
+            <div className="space-y-4">
+              {activePromotions.map((promo: any) => (
+                <div 
+                  key={promo.id} 
+                  className="flex items-start justify-between p-4 border rounded-lg hover:bg-muted/50 transition-colors"
+                >
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2 mb-2">
+                      <h4 className="font-semibold">{promo.name}</h4>
+                      <Badge variant="success">Active</Badge>
+                      {promo.discountType && (
+                        <Badge variant="outline">{promo.discountType}</Badge>
+                      )}
+                    </div>
+                    <p className="text-sm text-muted-foreground mb-2">
+                      {promo.description}
+                    </p>
+                    <div className="flex items-center gap-4 text-xs text-muted-foreground">
+                      <span>📅 {formatDate(promo.startDate)} - {formatDate(promo.endDate)}</span>
+                      {promo.discountValue && (
+                        <span>💰 {promo.discountValue}</span>
+                      )}
+                    </div>
+                  </div>
+                  <Button variant="ghost" size="sm">
+                    <ExternalLink className="h-4 w-4 mr-2" />
+                    View Content
+                  </Button>
+                </div>
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {scheduledPromotions.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Scheduled Promotions</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              {scheduledPromotions.map((promo: any) => (
+                <div 
+                  key={promo.id} 
+                  className="flex items-start justify-between p-4 border rounded-lg"
+                >
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2 mb-2">
+                      <h4 className="font-semibold">{promo.name}</h4>
+                      <Badge variant="secondary">Scheduled</Badge>
+                    </div>
+                    <p className="text-sm text-muted-foreground">
+                      Starts {formatDate(promo.startDate)}
+                    </p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+    </div>
+  );
+}
+```
+
+### 4.3 Recent Activity Component
+
+**File: `client/src/components/recent-activity.tsx`**
+
+```typescript
+import { useQuery } from "@tanstack/react-query";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { formatDistanceToNow } from "date-fns";
+
+interface RecentActivityProps {
+  brandId: string;
+}
+
+export function RecentActivity({ brandId }: RecentActivityProps) {
+  const { data: activity } = useQuery({
+    queryKey: ["/api/brands", brandId, "activity"],
+    queryFn: async () => {
+      const res = await fetch(`/api/brands/${brandId}/activity`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      return res.json();
+    },
+  });
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Recent Activity</CardTitle>
+      </CardHeader>
+      <CardContent>
+        {!activity || activity.length === 0 ? (
+          <p className="text-muted-foreground text-center py-8">
+            No recent activity
+          </p>
+        ) : (
+          <div className="space-y-4">
+            {activity.map((item: any) => (
+              <div 
+                key={item.id} 
+                className="flex items-start gap-3 pb-4 border-b last:border-0"
+              >
+                <div className="flex-shrink-0 mt-1">
+                  {getActivityIcon(item.type)}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium">{item.title}</p>
+                  <p className="text-sm text-muted-foreground">{item.description}</p>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    {formatDistanceToNow(new Date(item.createdAt), { addSuffix: true })}
+                  </p>
+                </div>
+                <Badge variant={getActivityBadge(item.status)}>
+                  {item.status}
+                </Badge>
+              </div>
+            ))}
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+function getActivityIcon(type: string) {
+  switch (type) {
+    case 'social':
+      return '📱';
+    case 'email':
+      return '📧';
+    case 'event':
+      return '🎪';
+    case 'promotion':
+      return '🎉';
+    case 'task':
+      return '✓';
+    default:
+      return '📄';
+  }
+}
+
+function getActivityBadge(status: string) {
+  switch (status) {
+    case 'PUBLISHED':
+    case 'COMPLETED':
+    case 'APPROVED':
+      return 'success';
+    case 'PENDING_APPROVAL':
+      return 'warning';
+    case 'DRAFT':
+      return 'secondary';
+    case 'REJECTED':
+      return 'destructive';
+    default:
+      return 'default';
+  }
+}
+```
+
+---
+
+## STEP 5: UPDATE MAIN DASHBOARD CALENDAR
+
+### 5.1 Keep Main Calendar Showing All Brands
+
+**File: `client/src/pages/dashboard.tsx`**
+
+```typescript
+import { UnifiedCalendar } from "@/components/unified-calendar";
+
+export default function Dashboard() {
+  return (
+    <div className="p-6 space-y-6">
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-bold">Marketing Dashboard</h1>
+          <p className="text-muted-foreground">
+            Company-wide marketing calendar across all brands
+          </p>
+        </div>
+      </div>
+
+      {/* Main unified calendar showing ALL brands */}
+      <UnifiedCalendar />
+    </div>
+  );
+}
+```
+
+**Note:** The `UnifiedCalendar` component (from previous prompt) should remain unchanged. It shows all brands by default with filter options.
+
+---
+
+## STEP 6: ADD BACKEND API ENDPOINTS
+
+### 6.1 Brand Stats Endpoint
+
+```typescript
+// server/routes.ts
+app.get("/api/brands/:id/stats", authenticateToken, async (req: any, res) => {
+  try {
+    const { id } = req.params;
+    
+    const now = new Date();
+    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+    
+    // Get posts this month
+    const posts = await storage.getSocialPosts({ 
+      brandId: id,
+      startDate: startOfMonth 
+    });
+    
+    // Get upcoming events (next 90 days)
+    const futureDate = new Date();
+    futureDate.setDate(futureDate.getDate() + 90);
+    const events = await storage.getEvents({ 
+      brandId: id,
+      startDate: now,
+      endDate: futureDate
+    });
+    
+    // Get active promotions
+    const promotions = await storage.getPromotions({ 
+      brandId: id,
+      status: 'ACTIVE' 
+    });
+    
+    // Get completed tasks
+    const tasks = await storage.getTasks({ 
+      brandId: id,
+      status: 'COMPLETED' 
+    });
+    
+    res.json({
+      postsThisMonth: posts.length,
+      upcomingEvents: events.length,
+      activePromotions: promotions.length,
+      completedTasks: tasks.length,
+    });
+  } catch (error) {
+    console.error("Get brand stats error:", error);
+    res.status(500).json({ message: "Internal server error" });
+  }
+});
+```
+
+### 6.2 Brand Activity Endpoint
+
+```typescript
+// server/routes.ts
+app.get("/api/brands/:id/activity", authenticateToken, async (req: any, res) => {
+  try {
+    const { id } = req.params;
+    const limit = parseInt(req.query.limit as string) || 20;
+    
+    // Fetch recent items from all content types
+    const [posts, emails, events, tasks] = await Promise.all([
+      storage.getSocialPosts({ brandId: id }),
+      storage.getEmailCampaigns({ brandId: id }),
+      storage.getEvents({ brandId: id }),
+      storage.getTasks({ brandId: id }),
+    ]);
+    
+    // Combine and transform into activity items
+    const activity: any[] = [];
+    
+    posts.slice(0, 10).forEach(post => {
+      activity.push({
+        id: `social-${post.id}`,
+        type: 'social',
+        title: `${post.platform} post created`,
+        description: post.caption?.substring(0, 100),
+        status: post.assetStatus,
+        createdAt: post.createdAt,
+      });
+    });
+    
+    emails.slice(0, 10).forEach(email => {
+      activity.push({
+        id: `email-${email.id}`,
+        type: 'email',
+        title: `Email campaign: ${email.subject}`,
+        description: email.previewText?.substring(0, 100),
+        status: email.status,
+        createdAt: email.createdAt,
+      });
+    });
+    
+    events.slice(0, 10).forEach(event => {
+      activity.push({
+        id: `event-${event.id}`,
+        type: 'event',
+        title: `Event: ${event.name}`,
+        description: event.description?.substring(0, 100),
+        status: event.status,
+        createdAt: event.createdAt,
+      });
+    });
+    
+    tasks.slice(0, 10).forEach(task => {
+      activity.push({
+        id: `task-${task.id}`,
+        type: 'task',
+        title: task.title,
+        description: task.description?.substring(0, 100),
+        status: task.status,
+        createdAt: task.createdAt,
+      });
+    });
+    
+    // Sort by creation date and limit
+    activity.sort((a, b) => 
+      new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+    );
+    
+    res.json(activity.slice(0, limit));
+  } catch (error) {
+    console.error("Get brand activity error:", error);
+    res.status(500).json({ message: "Internal server error" });
+  }
+});
+```
+
+### 6.3 Update Existing Endpoints to Support Brand Filtering
+
+**Ensure these endpoints accept `brandId` query parameter:**
+
+```typescript
+// Already existing, just verify they support brandId:
+app.get("/api/social", authenticateToken, async (req: any, res) => {
+  const { brandId, platform, regionId, startDate, endDate } = req.query;
+  const posts = await storage.getSocialPosts({ 
+    brandId, 
+    platform, 
+    regionId, 
+    startDate, 
+    endDate 
+  });
+  res.json(posts);
+});
+
+app.get("/api/email", authenticateToken, async (req: any, res) => {
+  const { brandId, status, regionId } = req.query;
+  const campaigns = await storage.getEmailCampaigns({ 
+    brandId, 
+    status, 
+    regionId 
+  });
+  res.json(campaigns);
+});
+
+app.get("/api/events", authenticateToken, async (req: any, res) => {
+  const { brandId, status, regionId, startDate, endDate } = req.query;
+  
+  // For events, need to check eventBrands junction table
+  let events = await storage.getEvents({ status, regionId, startDate, endDate });
+  
+  if (brandId) {
+    const eventBrands = await db
+      .select({ eventId: eventBrands.eventId })
+      .from(eventBrands)
+      .where(eq(eventBrands.brandId, brandId));
+    
+    const eventIds = eventBrands.map(eb => eb.eventId);
+    events = events.filter(e => eventIds.includes(e.id));
+  }
+  
+  res.json(events);
+});
+
+app.get("/api/tasks", authenticateToken, async (req: any, res) => {
+  const { brandId, status, priority, assigneeId } = req.query;
+  const tasks = await storage.getTasks({ 
+    brandId, 
+    status, 
+    priority, 
+    assigneeId 
+  });
+  res.json(tasks);
+});
+```
+
+---
+
+## STEP 7: UPDATE ASSETS PAGE (GLOBAL VIEW)
+
+### 7.1 Convert Current Assets Page to Global Library
+
+**File: `client/src/pages/assets.tsx`**
+
+```typescript
+export default function AssetsPage() {
+  const [selectedBrandId, setSelectedBrandId] = useState<string>("");
+  
+  const { data: brands } = useQuery({ queryKey: ["/api/brands"] });
+  const { data: assets } = useQuery({
+    queryKey: ["/api/assets", { brandId: selectedBrandId }],
+    queryFn: async () => {
+      const url = selectedBrandId 
+        ? `/api/assets?brandId=${selectedBrandId}`
+        : `/api/assets`;
+      const res = await fetch(url, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      return res.json();
+    },
+  });
+
+  return (
+    <div className="p-6">
+      <div className="flex items-center justify-between mb-6">
+        <div>
+          <h1 className="text-3xl font-bold">Asset Library</h1>
+          <p className="text-muted-foreground">
+            Global asset library across all brands
+          </p>
+        </div>
+        <Button>
+          <Plus className="h-4 w-4 mr-2" />
+          Upload Asset
+        </Button>
+      </div>
+
+      {/* Brand Filter */}
+      <div className="mb-6">
+        <Select value={selectedBrandId} onValueChange={setSelectedBrandId}>
+          <SelectTrigger className="w-64">
+            <SelectValue placeholder="All Brands" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="">All Brands</SelectItem>
+            {brands?.map((brand: any) => (
+              <SelectItem key={brand.id} value={brand.id}>
+                <div className="flex items-center gap-2">
+                  <div 
+                    className="w-3 h-3 rounded-full" 
+                    style={{ backgroundColor: brand.color }}
+                  />
+                  {brand.name}
+                </div>
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+
+      {/* Assets Grid */}
+      <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-4">
+        {assets?.map((asset: any) => (
+          <Card key={asset.id} className="overflow-hidden">
+            <div className="aspect-video bg-muted relative">
+              {asset.fileUrl && (
+                <img 
+                  src={asset.fileUrl} 
+                  alt={asset.name}
+                  className="object-cover w-full h-full"
+                />
+              )}
+              <Badge 
+                className="absolute top-2 right-2"
+                style={{ backgroundColor: asset.brand?.color }}
+              >
+                {asset.brand?.name}
+              </Badge>
+            </div>
+            <CardContent className="pt-4">
+              <h3 className="font-semibold">{asset.name}</h3>
+              <p className="text-sm text-muted-foreground">
+                {asset.assetType}
+              </p>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+    </div>
+  );
+}
+```
+
+---
+
+## STEP 8: INSTALL REQUIRED DEPENDENCIES
+
+```bash
+# Install react-big-calendar for calendar functionality
+npm install react-big-calendar moment
+npm install --save-dev @types/react-big-calendar
+
+# Install date-fns for date utilities
+npm install date-fns
+```
+
+---
+
+## STEP 9: DATABASE MIGRATIONS
+
+**Run migrations to ensure all tables exist:**
+
+```bash
+npm run db:push
+```
+
+**Verify brand-related queries work:**
+
+```sql
+-- Test queries
+SELECT * FROM brands WHERE is_active = true;
+SELECT * FROM social_posts WHERE brand_id = 'some-brand-id';
+SELECT * FROM email_campaigns WHERE brand_id = 'some-brand-id';
+```
+
+---
+
+## IMPLEMENTATION CHECKLIST
+
+### Phase 1: Navigation & Routing ✓
+- [ ] Update sidebar to show brand list
+- [ ] Add brand page route `/brands/:brandId`
+- [ ] Update App.tsx with new route
+
+### Phase 2: Brand Page Foundation ✓
+- [ ] Create BrandPage component
+- [ ] Add header with brand info
+- [ ] Add tabs (Calendar, Promotions, Activity)
+- [ ] Add external link buttons
+
+### Phase 3: Brand Calendar ✓
+- [ ] Create BrandCalendar component
+- [ ] Fetch brand-specific data (pre-filtered by brandId)
+- [ ] Add sub-filters (platform, region, content type)
+- [ ] Implement calendar event styling
+- [ ] Add click handlers to navigate to content
+
+### Phase 4: Supporting Components ✓
+- [ ] Create BrandStats component
+- [ ] Create ActivePromotions component
+- [ ] Create RecentActivity component
+- [ ] Add API endpoints for stats and activity
+
+### Phase 5: Backend Updates ✓
+- [ ] Add `/api/brands/:id/stats` endpoint
+- [ ] Add `/api/brands/:id/activity` endpoint
+- [ ] Verify all existing endpoints support `brandId` filter
+
+### Phase 6: Main Dashboard ✓
+- [ ] Keep UnifiedCalendar showing all brands
+- [ ] Ensure it still has brand filter option
+- [ ] No changes needed (already works)
+
+### Phase 7: Assets Page Update ✓
+- [ ] Convert to global asset library
+- [ ] Add brand filter dropdown
+- [ ] Show brand badge on assets
+
+### Phase 8: Testing ✓
+- [ ] Test navigation to brand pages
+- [ ] Verify each brand calendar shows only that brand's content
+- [ ] Test sub-filters on brand calendars
+- [ ] Verify main dashboard still shows all brands
+- [ ] Test clicking calendar events navigates correctly
+- [ ] Check external links work
+
+---
+
+## KEY CONCEPTS TO REMEMBER
+
+### 1. **Single Source of Truth**
+All calendar data comes from the same database tables. Brand pages simply filter this data by `brandId`.
+
+### 2. **Pre-filtered View**
+```
+Main Calendar (Dashboard):  WHERE 1=1 (all brands)
+Skip Hop Page Calendar:     WHERE brand_id = 'skip-hop-id'
+Beaba Page Calendar:        WHERE brand_id = 'beaba-id'
+```
+
+### 3. **Calendar Synchronization**
+- Changes made on brand pages affect the main calendar automatically
+- Changes on main calendar appear on relevant brand pages
+- No data duplication—just different views of same data
+
+### 4. **Navigation Flow**
+```
+User Flow 1: Dashboard → See all brands → Filter by brand → View details
+User Flow 2: Skip Hop sidebar → Skip Hop page → See Skip Hop calendar only
+User Flow 3: Social page → Create post → Select brand → Post appears on that brand's calendar
+```
+
+---
+
+## TESTING GUIDE
+
+### Test 1: Brand Page Access
+1. Click "Skip Hop" in sidebar
+2. Verify page loads with Skip Hop branding
+3. Check calendar shows only Skip Hop content
+4. Verify external links work (if configured)
+
+### Test 2: Calendar Filtering
+1. On Skip Hop page, apply platform filter (Instagram only)
+2. Verify calendar updates to show only Instagram posts
+3. Apply region filter
+4. Verify calendar updates correctly
+
+### Test 3: Cross-Page Consistency
+1. Note an event on Skip Hop calendar (e.g., "Summer Sale - June 15")
+2. Go to main dashboard
+3. Verify same event appears on dashboard calendar
+4. Filter dashboard to Skip Hop only
+5. Verify you see same events as brand page
+
+### Test 4: Content Creation
+1. Create new social post for Beaba
+2. Go to Beaba brand page
+3. Verify new post appears on calendar
+4. Go to dashboard
+5. Verify new post appears there too
+
+---
+
+## BENEFITS OF THIS APPROACH
+
+✅ **Brand-Specific Views** - Each brand gets its own dedicated workspace
+✅ **Easy Navigation** - Sidebar shows all brands for quick access
+✅ **Marketing Plans** - Each brand's calendar shows their complete marketing plan
+✅ **No Duplication** - One database, multiple filtered views
+✅ **Main Dashboard Intact** - Company-wide view still works perfectly
+✅ **Scalable** - Easy to add new brands, they get pages automatically
+✅ **Consistent UX** - Same calendar component, just different filters
+
+---
+
+## FINAL NOTES
+
+This architecture creates **brand-centric workspaces** while maintaining a **unified data model**. Each brand page becomes a mini-dashboard focused on that brand's marketing activities, but all data feeds into the main company calendar.
+
+Perfect for your use case where Skip Hop has its own social plan, Beaba has its own marketing plan, etc!
